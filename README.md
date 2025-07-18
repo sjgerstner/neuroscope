@@ -3,9 +3,10 @@
 Code to visualise any given MLP neuron of a Transformer language model, especially via text examples that strongly activate it.
 
 Strongly inspired by Neel Nanda's <https://neuroscope.io/>, hence the name.
+See also <https://github.com/neelnanda-io/Neuroscope>
+(I noticed too late that he published his code).
 What's new compared to it:
 
-* Open-source code
 * Specifically adapted to gated activation functions like SwiGLU, which are largely used in recent open-weights LLMs. In particular, strong negative activations are possible.
 * BUT I only actually made a visualisation for a few neurons. Let's be honest: for most neurons nobody will ever care.
 
