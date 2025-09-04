@@ -28,7 +28,7 @@ parser.add_argument('--dataset', type=str, default="emozilla/dolma-v1_7-3B",
                     Alternative subset of Dolma: agentlans/dolma-1m
                     """,
                     )
-parser.add_argument('--datadir', type=str, default=None,
+parser.add_argument('--datadir', type=str, default='datasets',
                     help="""
                     general data directory.
                     The dataset will be saved to a subdirectory based on dataset and model name.
