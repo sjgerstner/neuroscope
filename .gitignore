@@ -1,4 +1,5 @@
 datasets/*
+results/OLMo-7B-0424-hf_dolma-small/activation_cache
 *.pickle
 
 # Byte-compiled / optimized / DLL files
