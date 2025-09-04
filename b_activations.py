@@ -62,7 +62,9 @@ def _get_reduce_and_arg(cache_item, reduction, k=1, to_device='cpu'):
     vi_dict = {'values': myred.values.to(to_device), 'indices':myred.indices.to(to_device)}
     if k==1:
         for key,tensor in vi_dict.items():
-            vi_dict[key] = einops.reduce(tensor, '... 1 layer neuron -> ... layer neuron', reduction)
+            vi_dict[key] = einops.reduce(
+                tensor, '... 1 layer neuron -> ... layer neuron', reduction
+            )
     return vi_dict
 
 def _get_reduce(cache_item, reduction, arg=False, k=1, use_cuda=True, to_device='cpu'):
@@ -125,7 +127,9 @@ def _get_all_neuron_acts(model, ids_and_mask, names_filter, max_seq_len=1024):
 
     return intermediate
 
-def get_all_neuron_acts_on_dataset(model, dataset, args, n_tokens=None, max_seq_len=1024, path=None):
+def get_all_neuron_acts_on_dataset(
+    model, dataset, args, n_tokens=None, max_seq_len=1024, path=None
+):
     #https://colab.research.google.com/github/neelnanda-io/TransformerLens/blob/main/demos/Interactive_Neuroscope.ipynb
 
     batched_dataset = dataset.batch(
@@ -187,12 +191,14 @@ def get_all_neuron_acts_on_dataset(model, dataset, args, n_tokens=None, max_seq_
                             k=args.examples_per_neuron,
                             )#k+1 layer neuron -> k layer neuron
                         out_dict[key]['values'] = vi['values']
-                        out_dict[key]['indices'] = torch.gather(out_dict[key]['indices'], dim=0, index=vi['indices'])
+                        out_dict[key]['indices'] = torch.gather(
+                            out_dict[key]['indices'], dim=0, index=vi['indices']
+                        )
                         #original dataset indices!
                         #I want:
-                        #output[i,layer,neuron] = out_dict[key]['indices'][vi['indices'][i,layer,neuron],layer,neuron]
-                        #hence
-                        #output = torch.gather(out_dict[key]['indices'], dim=0, index=vi['indices'])
+                        #new_out_dict[key]['indices'][i,layer,neuron] =
+                        # out_dict[key]['indices'][vi['indices'][i,layer,neuron],layer,neuron]
+                        #hence the above line of code
                 else:
                     del intermediate[key]
 
@@ -210,12 +216,13 @@ def topk_indices(maxact, k=16, largest=True, use_cuda=True):
 
 if __name__=="__main__":
     parser = ArgumentParser()
-    parser.add_argument('--dataset', default='dolma_small')
+    parser.add_argument('--dataset', default='dolma-small')
     parser.add_argument('--model', default='allenai/OLMo-1B-hf')
     parser.add_argument('--batch_size', default=1, type=int)
     parser.add_argument('--examples_per_neuron', default=16, type=int)
     parser.add_argument('--resume_from', default=0)
-    parser.add_argument('--datadir', default=None)
+    parser.add_argument('--datasets_dir', default='datasets')
+    parser.add_argument('--results_dir', default='results')
     parser.add_argument('--save_to', default=None)
     parser.add_argument('--test', action='store_true')
     args = parser.parse_args()
@@ -225,10 +232,10 @@ if __name__=="__main__":
     elif args.test:
         RUN_CODE = "test"
     else:
-        RUN_CODE = f"{args.model.split('/')[-1]}_{args.dataset.split('-')[0]}"
+        RUN_CODE = f"{args.model.split('/')[-1]}_{args.dataset}"
     #OLMO-1B-hf_dolma-v1_7-3B
 
-    SAVE_PATH = f"{args.datadir}/{RUN_CODE}"
+    SAVE_PATH = f"{args.results_dir}/{RUN_CODE}"
     if not os.path.exists(SAVE_PATH):
         os.mkdir(SAVE_PATH)
 
@@ -236,7 +243,7 @@ if __name__=="__main__":
 
     model = HookedTransformer.from_pretrained(args.model)
 
-    dataset = load_from_disk(f'{args.datadir}/{args.dataset}')
+    dataset = load_from_disk(f'{args.datasets_dir}/{args.dataset}')
     if args.test:
         dataset = dataset.select(range(2))
     n_tokens = sum(len(row) for row in dataset['input_ids'])

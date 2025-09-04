@@ -4,7 +4,7 @@ Code to visualise any given MLP neuron of a Transformer language model, especial
 
 Strongly inspired by Neel Nanda's <https://neuroscope.io/>, hence the name.
 See also <https://github.com/neelnanda-io/Neuroscope>
-(I noticed too late that he published his code).
+(but I preferred to write my own code).
 What's new compared to it:
 
 * Specifically adapted to gated activation functions like SwiGLU, which are largely used in recent open-weights LLMs. In particular, strong negative activations are possible.
@@ -48,9 +48,9 @@ Open it in a browser (with JavaScript) or in VSCode if you have an appropriate e
 **If** you want to reproduce the run, do the following steps:
 
 ```[bash]
-python a_dataset.py --datadir YOUR_DATA_DIR --save_to dolma_small
-python b_activations.py --model allenai/OLMo-7B-0424-hf --datadir YOUR_DATA_DIR --save_to results
-python d_recompute_vis.py --model allenai/OLMo-7B-0424-hf --datadir YOUR_DATA_DIR --save_to results --neurons 28.4737 28.9766 31.9634 29.10900 30.10972 29.4180
+python a_dataset.py --save_to dolma-small
+python b_activations.py --model allenai/OLMo-7B-0424-hf
+python d_recompute_vis.py --model allenai/OLMo-7B-0424-hf --neurons 28.4737 28.9766 31.9634 29.10900 30.10972 29.4180 #for example
 ```
 
 Explanations:

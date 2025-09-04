@@ -12,9 +12,10 @@ from b2_recompute import recompute_acts
 from c_neuron_vis import neuron_vis_full
 
 parser = ArgumentParser()
-parser.add_argument('--dataset', default='dolma_small')
+parser.add_argument('--dataset', default='dolma-small')
 parser.add_argument('--model', default='allenai/OLMo-1B-hf')
-parser.add_argument('--datadir', default=None)
+parser.add_argument('--datasets_dir', default='datasets')
+parser.add_argument('--results_dir', default='results')
 parser.add_argument('--save_to', default=None)
 parser.add_argument('--neurons',
     nargs='+',
@@ -30,11 +31,11 @@ if args.save_to:
 elif args.test:
     RUN_CODE = "test"
 else:
-    RUN_CODE = f"{args.model.split('/')[-1]}_{args.dataset.split('-')[0]}"
+    RUN_CODE = f"{args.model.split('/')[-1]}_{args.dataset}"
 #OLMO-1B-hf_dolma-v1_7-3B
 #the id of the b_activations.py run
 
-SAVE_PATH = f"{args.datadir}/{RUN_CODE}"
+SAVE_PATH = f"{args.results_dir}/{RUN_CODE}"
 TITLE = f"<h1>Model: <b>{args.model}</b></h1>\n"
 
 torch.set_grad_enabled(False)
@@ -64,14 +65,15 @@ maxmin_indices = torch.cat(
     [summary_dict['max_activations']['indices'], summary_dict['min_activations']['indices']]
 )#.to(torch.int)
 
-dataset = load_from_disk(f'{args.datadir}/{args.dataset}')
+dataset = load_from_disk(f'{args.datasets_dir}/{args.dataset}')
 
 for layer,neuron_list in enumerate(layer_neuron_list):
     print(f'processing layer {layer}...')
-    if not os.path.exists(f"{args.datadir}/{RUN_CODE}/L{layer}"):
-        os.mkdir(f"{args.datadir}/{RUN_CODE}/L{layer}")
+    layer_dir = f"{args.results_dir}/{RUN_CODE}/L{layer}"
+    if not os.path.exists(layer_dir):
+        os.mkdir(layer_dir)
     for neuron in tqdm(neuron_list):
-        neuron_dir = f"{args.datadir}/{RUN_CODE}/L{layer}/N{neuron}"
+        neuron_dir = f"{layer_dir}/N{neuron}"
         if not os.path.exists(neuron_dir):
             os.mkdir(neuron_dir)
         #recomputing neuron activations on max and min examples
