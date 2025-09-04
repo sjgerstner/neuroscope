@@ -1,8 +1,12 @@
 """
 Compute max activations for all neurons on a given dataset.
 The code was written with batch size 1 in mind.
-Other batch sizes will almost certainly to bugs.
+Other batch sizes will almost certainly lead to bugs.
 """
+
+#TODO enable other batch sizes, don't forget problems with padding tokens
+#TODO replace pickle with pt
+#TODO refactor_glu
 
 from argparse import ArgumentParser
 import os
@@ -12,33 +16,52 @@ from tqdm import tqdm
 import torch
 import einops
 
-from datasets import load_from_disk
+from datasets import load_from_disk, Dataset
+from transformers.activations import ACT2FN
 
 from transformer_lens import HookedTransformer
 
-HOOKS = ['ln2.hook_normalized', 'mlp.hook_post', 'mlp.hook_pre']
-KEYS = [
-        'ln_cache',
-        'max_activations',
-        'min_activations',
-        'summary_mean',
-        'summary_freq',
+HOOKS = ['ln2.hook_normalized', 'mlp.hook_post', 'mlp.hook_pre', 'mlp.hook_pre_linear']
+HEAP_KEYS = [
+        ('hook_post', 'max'),
+        ('hook_post', 'min'),
+        ('hook_pre_linear', 'max'),
+        ('hook_pre_linear', 'min'),
+        ('hook_pre', 'max'),
+        ('hook_pre', 'min'),
+        ('swish', 'min'),
+        ('gate+_in+', 'max'),
+        ('gate+_in-', 'min'),
+        ('gate-_in+', 'min'),
+        ('gate-_in-', 'max'),
 ]
-HEAP_KEYS = {
-    'max_activations':'max',
-    'min_activations':'min',
-}
 SUMMARY_KEYS = [
-    'summary_mean',
-    'summary_freq',
+        'mean',
+        'gate+_in+',
+        'gate+_in-',
+        'gate-_in+',
+        'gate-_in-',
 ]
-# SAVING_KEYS = [
-#     'ln_cache',
-#     'max_activations',
-#     'argmax_activations',
-#     'min_activations',
-#     'argmin_activations',
-# ]
+KEYS = ['ln_cache', *HEAP_KEYS, *SUMMARY_KEYS]
+
+class ModelWrapper(HookedTransformer):
+    """Allows to directly access the (sub) activation function of the model,
+    (i.e., Swish in the case of SwiGLU etc.)
+    without looking it up every time
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.actfn = ACT2FN[self.cfg.act_fn]
+
+class DatasetWrapper(Dataset):
+    """Allows to directly access the following properties of a dataset:
+        self.n_tokens: total number of tokens
+        self.max_seq_len: maximum length in tokens of a single example
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.n_tokens = sum(len(row) for row in dataset['input_ids'])
+        self.max_seq_len = max(len(row) for row in dataset['input_ids'])
 
 def _move_to(dict_of_tensors, device):
     for key,value in dict_of_tensors.items():
@@ -114,21 +137,40 @@ def _get_all_neuron_acts(model, ids_and_mask, names_filter, max_seq_len=1024):
     #fill in
     intermediate['ln_cache'][:, :seq_len, :] = cache['ln2.hook_normalized'].cpu()
 
-    for key,value in HEAP_KEYS.items():
-        intermediate[key] = _get_reduce(
-            cache['mlp.hook_post'],
-            reduction=value,
-            arg=True,
-        )#batch pos layer neuron -> {'values': batch layer neuron, 'indices': batch layer neuron}
-
+    #summary keys (mean and frequencies)
     #layer neuron
-    intermediate['summary_mean'] = _get_reduce(cache['mlp.hook_post'], 'sum')
-    intermediate['summary_freq'] = _get_reduce(cache['mlp.hook_pre']>0, 'sum')
+    intermediate['mean'] = _get_reduce(cache['mlp.hook_post'], 'sum')
+    gate_positive = cache['mlp.hook_pre']>0
+    in_positive = cache['mlp.hook_pre_linear']>0
+    bins={}
+    bins['gate+_in+'] = gate_positive*in_positive
+    bins['gate+_in-'] = gate_positive*~in_positive
+    bins['gate-_in+'] = (~gate_positive)*in_positive
+    bins['gate-_in-'] = (~gate_positive)*~in_positive
+    for key in bins:
+        intermediate[key] = _get_reduce(bins, 'sum')
+
+    for t in HEAP_KEYS:
+        hook, reduction = t
+        if hook.startswith('hook'):
+            values = cache[f'mlp.{hook}']
+        elif hook.startswith('gate'):
+            values = cache['mlp.hook_post']*bins[hook]
+        elif hook=='swish':
+            values = model.actfn(cache['mlp.hook_pre'])
+        else:
+            raise NotImplementedError
+        intermediate[t] = _get_reduce(
+            values,
+            reduction=reduction,
+            arg=True,
+        )
+        #batch pos layer neuron -> {'values': batch layer neuron, 'indices': batch layer neuron}
 
     return intermediate
 
 def get_all_neuron_acts_on_dataset(
-    model, dataset, args, n_tokens=None, max_seq_len=1024, path=None
+    args, model, dataset, path=None
 ):
     #https://colab.research.google.com/github/neelnanda-io/TransformerLens/blob/main/demos/Interactive_Neuroscope.ipynb
 
@@ -150,7 +192,7 @@ def get_all_neuron_acts_on_dataset(
             with open(f"{path}/activation_cache/batch{i}.pickle", 'rb') as f:
                 intermediate = _move_to(pickle.load(f), device='cuda')
         else:
-            intermediate = _get_all_neuron_acts(model, batch, names_filter, max_seq_len)
+            intermediate = _get_all_neuron_acts(model, batch, names_filter, dataset.max_seq_len)
             with open(f"{path}/activation_cache/batch{i}.pickle", 'wb') as f:
                 pickle.dump(_move_to(intermediate, 'cpu'), f)
         if i==0:
@@ -161,49 +203,47 @@ def get_all_neuron_acts_on_dataset(
                     'indices':torch.full_like(intermediate[key]['values'], 0)
                 }
         else:
-            for key in KEYS:
-                if key in SUMMARY_KEYS:
-                    out_dict[key] = _get_reduce(
-                        torch.stack([out_dict[key], intermediate[key]]),
-                        'sum'
-                        )#batch layer neuron -> layer neuron
-                elif key in HEAP_KEYS:
-                    out_dict[key] = {
-                        'values': torch.cat(
-                            [
-                                out_dict[key]['values'],
-                                intermediate[key]['values']
-                                ]
-                            ),
-                        'indices':torch.cat(
-                            [
-                                out_dict[key]['indices'],
-                                torch.full_like(intermediate[key]['values'], i)
-                                ]
-                            )
-                    }#both entries: sample layer neuron
-                    if i>=args.examples_per_neuron:#running topk computation
-                        #print(out_dict[key]['values'].shape) #should be: k layer neuron
-                        vi = _get_reduce(
+            for key in SUMMARY_KEYS:
+                out_dict[key] = _get_reduce(
+                    torch.stack([out_dict[key], intermediate[key]]),
+                    'sum'
+                    )#batch layer neuron -> layer neuron
+            for key in HEAP_KEYS:
+                out_dict[key] = {
+                    'values': torch.cat(
+                        [
                             out_dict[key]['values'],
-                            HEAP_KEYS[key],
-                            arg=True,
-                            k=args.examples_per_neuron,
-                            )#k+1 layer neuron -> k layer neuron
-                        out_dict[key]['values'] = vi['values']
-                        out_dict[key]['indices'] = torch.gather(
-                            out_dict[key]['indices'], dim=0, index=vi['indices']
+                            intermediate[key]['values']
+                            ]
+                        ),
+                    'indices':torch.cat(
+                        [
+                            out_dict[key]['indices'],
+                            torch.full_like(intermediate[key]['values'], i)
+                            ]
                         )
-                        #original dataset indices!
-                        #I want:
-                        #new_out_dict[key]['indices'][i,layer,neuron] =
-                        # out_dict[key]['indices'][vi['indices'][i,layer,neuron],layer,neuron]
-                        #hence the above line of code
-                else:
-                    del intermediate[key]
+                }#both entries: sample layer neuron
+                if i>=args.examples_per_neuron:#running topk computation
+                    #print(out_dict[key]['values'].shape) #should be: k layer neuron
+                    vi = _get_reduce(
+                        out_dict[key]['values'],
+                        reduction=key[1],
+                        arg=True,
+                        k=args.examples_per_neuron,
+                        )#k+1 layer neuron -> k layer neuron
+                    out_dict[key]['values'] = vi['values']
+                    out_dict[key]['indices'] = torch.gather(
+                        out_dict[key]['indices'], dim=0, index=vi['indices']
+                    )
+                    #original dataset indices!
+                    #I want:
+                    #new_out_dict[key]['indices'][i,layer,neuron] =
+                    # out_dict[key]['indices'][vi['indices'][i,layer,neuron],layer,neuron]
+                    #hence the above line of code
+            del intermediate['ln_cache']
 
     for key in SUMMARY_KEYS:
-        out_dict[key] = out_dict[key].to(torch.float) / float(n_tokens)
+        out_dict[key] = out_dict[key].to(torch.float) / float(dataset.n_tokens)
 
     return out_dict
 
@@ -241,23 +281,21 @@ if __name__=="__main__":
 
     torch.set_grad_enabled(False)
 
-    model = HookedTransformer.from_pretrained(args.model)
+    model = ModelWrapper.from_pretrained(args.model)
 
     dataset = load_from_disk(f'{args.datasets_dir}/{args.dataset}')
     if args.test:
         dataset = dataset.select(range(2))
-    n_tokens = sum(len(row) for row in dataset['input_ids'])
-    max_seq_len = max(len(row) for row in dataset['input_ids'])
+    dataset = DatasetWrapper(dataset)
 
     print('computing activations...')
     if not os.path.exists(f'{SAVE_PATH}/summary.pickle'):
-        out_dict = get_all_neuron_acts_on_dataset(model,
-                                                dataset,
-                                                args=args,
-                                                max_seq_len=max_seq_len,
-                                                n_tokens=n_tokens,
-                                                path=SAVE_PATH,
-                                                )
+        out_dict = get_all_neuron_acts_on_dataset(
+            args=args,
+            model=model,
+            dataset=dataset,
+            path=SAVE_PATH,
+        )
         with open(f'{SAVE_PATH}/summary.pickle', 'wb') as f:
             pickle.dump(_move_to(out_dict, 'cpu'), f)
     print('done!')
