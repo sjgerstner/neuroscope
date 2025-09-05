@@ -44,7 +44,8 @@ parser.add_argument('--add_bos_token', type=bool, default=True,
 parser.add_argument('--max_length', type=int, default=1024,
                     help="length of example token blocks")
 parser.add_argument('--return_overflowing_tokens', type=bool, default=False,
-                    help="make additional training examples with overflowing tokens")
+                    help="""Make additional training examples with overflowing tokens.
+                    In this case it is currently not possible to keep the ids and metadata.""")
 parser.add_argument('--padding', type=bool, default=False,
                     help="pad examples to args.max_length")
 group = parser.add_mutually_exclusive_group()
@@ -78,11 +79,11 @@ def tokenization(example):
         return_overflowing_tokens=args.return_overflowing_tokens,
         padding='max_length' if args.padding else False,
         )
-
+#TODO (low prio):
+# find a solution to keep id and metadata columns when returning overflowing tokens
 dataset = dataset.map(tokenization,
                  batched=True,
-                 remove_columns=dataset.column_names,
-                 #removing columns necessary if returning overflowing tokens, useful in any case
+                 remove_columns=dataset.column_names if args.return_overflowing_tokens else None,
                  )
 #input_ids, attention_mask, (overflow_to_sample_mapping)
 
