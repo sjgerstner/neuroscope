@@ -16,14 +16,13 @@ from tqdm import tqdm
 import torch
 import einops
 
-from datasets import load_from_disk, Dataset
-from transformers.activations import ACT2FN
+from datasets import load_from_disk
 
-from transformer_lens import HookedTransformer
+from utils import ModelWrapper, DatasetWrapper, _move_to
 
 HOOKS = ['ln2.hook_normalized', 'mlp.hook_post', 'mlp.hook_pre', 'mlp.hook_pre_linear']
 HEAP_KEYS = [
-        ('hook_post', 'max'),
+        ('hook_post', 'max'),#TODO not needed any more?
         ('hook_post', 'min'),
         ('hook_pre_linear', 'max'),
         ('hook_pre_linear', 'min'),
@@ -44,33 +43,6 @@ SUMMARY_KEYS = [
 ]
 KEYS = ['ln_cache', *HEAP_KEYS, *SUMMARY_KEYS]
 
-class ModelWrapper(HookedTransformer):
-    """Allows to directly access the (sub) activation function of the model,
-    (i.e., Swish in the case of SwiGLU etc.)
-    without looking it up every time
-    """
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.actfn = ACT2FN[self.cfg.act_fn]
-
-class DatasetWrapper(Dataset):
-    """Allows to directly access the following properties of a dataset:
-        self.n_tokens: total number of tokens
-        self.max_seq_len: maximum length in tokens of a single example
-    """
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.n_tokens = sum(len(row) for row in dataset['input_ids'])
-        self.max_seq_len = max(len(row) for row in dataset['input_ids'])
-
-def _move_to(dict_of_tensors, device):
-    for key,value in dict_of_tensors.items():
-        if torch.is_tensor(value):
-            dict_of_tensors[key] = value.to(device)
-        elif isinstance(value, dict):
-            dict_of_tensors[key] = _move_to(value, device)
-    return dict_of_tensors
-
 def _get_reduce_and_arg(cache_item, reduction, k=1, to_device='cpu'):
     if reduction not in ('max', 'min', 'top', 'bottom'):
         raise NotImplementedError
@@ -82,7 +54,10 @@ def _get_reduce_and_arg(cache_item, reduction, k=1, to_device='cpu'):
         k=k,
         largest=reduction in ('max','top'),
     )
-    vi_dict = {'values': myred.values.to(to_device), 'indices':myred.indices.to(to_device)}
+    vi_dict = {
+        'values': myred.values.to(to_device),
+        'indices':myred.indices.to(torch.int, to_device),
+    }
     if k==1:
         for key,tensor in vi_dict.items():
             vi_dict[key] = einops.reduce(

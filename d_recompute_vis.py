@@ -1,13 +1,17 @@
+#TODO adapt to changes in activations code
+# (pickle vs pt, keys)
+
 from argparse import ArgumentParser
 import os
 import pickle
 from tqdm import tqdm
 
 import torch
-from datasets import load_from_disk
 from transformer_lens import HookedTransformer
+from datasets import load_from_disk
 
-from b_activations import _move_to
+from utils import _move_to
+from b_activations import HEAP_KEYS
 from b2_recompute import recompute_acts
 from c_neuron_vis import neuron_vis_full
 
@@ -47,7 +51,7 @@ with open(f'{SAVE_PATH}/summary.pickle', 'rb') as f:
     summary_dict = _move_to(pickle.load(f), 'cuda')
     print(f"summary_dict: {summary_dict.keys()}")
 
-TOPK = summary_dict['max_activations']['indices'].shape[0]#topk layer neuron
+TOPK = summary_dict[('gate+_in+', 'max')]['indices'].shape[0]#topk layer neuron
 if args.neurons=='all':
     layer_neuron_list = [range(model.cfg.d_mlp) for _layer in range(model.cfg.n_layers)]
 elif args.neurons:
@@ -58,12 +62,9 @@ elif args.neurons:
 elif args.test:
     layer_neuron_list = [[0]]
 
-summary_dict['max_activations']['indices'] = summary_dict['max_activations']['indices'].to(torch.int)
-summary_dict['min_activations']['indices'] = summary_dict['min_activations']['indices'].to(torch.int)
-
 maxmin_indices = torch.cat(
-    [summary_dict['max_activations']['indices'], summary_dict['min_activations']['indices']]
-)#.to(torch.int)
+    (summary_dict[key]['indices'] for key in HEAP_KEYS)
+)
 
 dataset = load_from_disk(f'{args.datasets_dir}/{args.dataset}')
 
@@ -78,7 +79,7 @@ for layer,neuron_list in enumerate(layer_neuron_list):
             os.mkdir(neuron_dir)
         #recomputing neuron activations on max and min examples
         if not os.path.exists(f'{neuron_dir}/activations.pt'):
-            dict_all = recompute_acts(
+            dict_all = recompute_acts(#TODO
                 model,
                 layer, neuron,
                 maxmin_indices[:,layer,neuron],
@@ -89,7 +90,7 @@ for layer,neuron_list in enumerate(layer_neuron_list):
         else:
             dict_all = torch.load(f'{neuron_dir}/activations.pt')
         #visualisation
-        neuron_data = {
+        neuron_data = {#TODO
             'max_indices':maxmin_indices[:TOPK, layer, neuron],
             'min_indices':maxmin_indices[TOPK:, layer, neuron],
             'max_acts':dict_all['acts'][:TOPK],
@@ -103,7 +104,7 @@ for layer,neuron_list in enumerate(layer_neuron_list):
         }
         # We add some text to tell us what layer and neuron we're looking at
         heading = f"<h2>Layer: <b>{layer}</b>. Neuron Index: <b>{neuron}</b></h2>\n"
-        HTML = TITLE + heading + neuron_vis_full(
+        HTML = TITLE + heading + neuron_vis_full(#TODO
                 neuron_data=neuron_data,
                 dataset=dataset,
                 tokenizer=tokenizer,
