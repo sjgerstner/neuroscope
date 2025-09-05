@@ -5,11 +5,9 @@ import einops
 
 from transformers.activations import ACT2FN
 
-#from utils import ModelWrapper
+from utils import ModelWrapper
 
-def recompute_acts(model, layer, neuron, indices, save_path):
-    actfn = ACT2FN[model.cfg.act_fn]
-
+def recompute_acts(model:ModelWrapper, layer:int, neuron:int, indices:torch.Tensor[int], save_path:str):
     ln_cache=[]
     for i in indices:
         with open(f"{save_path}/activation_cache/batch{i}.pickle", 'rb') as f:
@@ -21,7 +19,7 @@ def recompute_acts(model, layer, neuron, indices, save_path):
 
     intermediate = {}
 
-    intermediate['gate'] = actfn(
+    intermediate['gate'] = model.actfn(
         einops.einsum(ln_cache,
                       model.blocks[layer].mlp.W_gate[:,neuron],
                       'sample pos d_model, d_model -> sample pos'
@@ -33,6 +31,5 @@ def recompute_acts(model, layer, neuron, indices, save_path):
         'sample pos d_model, d_model -> sample pos'
         )
     intermediate['acts'] = intermediate['gate']*intermediate['in']
-    # for key, value in intermediate.items():
-    #     out_dict[key][layer,neuron] = value
+
     return intermediate
