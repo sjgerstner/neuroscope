@@ -7,8 +7,8 @@ Make tokenized blocks of fixed length.
 from argparse import ArgumentParser
 import os
 
-from datasets import load_dataset#, DatasetDict
 from transformers import AutoTokenizer
+from datasets import load_dataset#, DatasetDict
 
 parser = ArgumentParser(description="""
 Preprocess given dataset for neuroscope,
@@ -112,9 +112,9 @@ print(tokenizer.decode(dataset[0]['input_ids']))
 if not os.path.exists(args.datadir):
     os.mkdir(args.datadir)
 if args.save_to:
-    save_to = args.save_to
+    SAVE_TO = args.save_to
 else:
-    save_to = f"{args.dataset.split('/')[-1]}-{"-".join(args.tokenizer.split('/')[-1].split('-')[:2])}"
+    SAVE_TO = f"{args.dataset.split('/')[-1]}-{"-".join(args.tokenizer.split('/')[-1].split('-')[:2])}"
 dataset.save_to_disk(
-    f"{args.datadir}/{save_to}"
+    f"{args.datadir}/{SAVE_TO}"
     )
