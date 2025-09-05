@@ -5,6 +5,8 @@ import einops
 
 from transformers.activations import ACT2FN
 
+#from utils import ModelWrapper
+
 def recompute_acts(model, layer, neuron, indices, save_path):
     actfn = ACT2FN[model.cfg.act_fn]
 
