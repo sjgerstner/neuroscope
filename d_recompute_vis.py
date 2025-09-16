@@ -14,6 +14,11 @@ from c_neuron_vis import neuron_vis_full
 parser = ArgumentParser()
 parser.add_argument('--dataset', default='dolma-small')
 parser.add_argument('--model', default='allenai/OLMo-1B-hf')
+parser.add_argument(
+    '--refactor_glu',
+    action='store_true',
+    help='whether to refactor the weights such that cos(w_gate,w_in)>=0'
+)
 parser.add_argument('--datasets_dir', default='datasets')
 parser.add_argument('--results_dir', default='results')
 parser.add_argument('--save_to', default=None)
@@ -40,7 +45,7 @@ TITLE = f"<h1>Model: <b>{args.model}</b></h1>\n"
 
 torch.set_grad_enabled(False)
 
-model = HookedTransformer.from_pretrained(args.model)
+model = HookedTransformer.from_pretrained(args.model, refactor_glu=args.refactor_glu)
 tokenizer = model.tokenizer
 
 with open(f'{SAVE_PATH}/summary.pickle', 'rb') as f:
