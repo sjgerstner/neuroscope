@@ -4,12 +4,14 @@ import pickle
 from tqdm import tqdm
 
 import torch
-from datasets import load_from_disk
+import einops
 from transformer_lens import HookedTransformer
+from datasets import load_from_disk
 
 from b_activations import _move_to
 from b2_recompute import recompute_acts
 from c_neuron_vis import neuron_vis_full
+import utils
 
 parser = ArgumentParser()
 parser.add_argument('--dataset', default='dolma-small')
@@ -45,23 +47,33 @@ TITLE = f"<h1>Model: <b>{args.model}</b></h1>\n"
 
 torch.set_grad_enabled(False)
 
-model = HookedTransformer.from_pretrained(args.model, refactor_glu=args.refactor_glu)
-tokenizer = model.tokenizer
-
-with open(f'{SAVE_PATH}/summary.pickle', 'rb') as f:
+SUMMARY_FILE = f'{SAVE_PATH}/summary{"_refactored" if args.refactor_glu else""}.pickle'
+if refactored_already:= os.path.exists(SUMMARY_FILE):
+    MY_FILE = SUMMARY_FILE
+else:
+    MY_FILE = f'{SAVE_PATH}/summary.pickle'
+with open(MY_FILE, 'rb') as f:
     summary_dict = _move_to(pickle.load(f), 'cuda')
     print(f"summary_dict: {summary_dict.keys()}")
 
-TOPK = summary_dict['max_activations']['indices'].shape[0]#topk layer neuron
-if args.neurons=='all':
-    layer_neuron_list = [range(model.cfg.d_mlp) for _layer in range(model.cfg.n_layers)]
-elif args.neurons:
-    layer_neuron_list = [[] for layer in range(model.cfg.n_layers)]
-    for ln_str in args.neurons:
-        layer, neuron = tuple(int(n) for n in ln_str.split('.'))
-        layer_neuron_list[layer].append(neuron)
-elif args.test:
-    layer_neuron_list = [[0]]
+dataset = load_from_disk(f'{args.datasets_dir}/{args.dataset}')
+
+model = HookedTransformer.from_pretrained(
+    args.model,
+    refactor_glu=args.refactor_glu and refactored_already,#not yet refactor_glu=args.refactor_glu
+    device='cpu' if (args.refactor_glu and not refactored_already) else 'cuda',
+)
+tokenizer = model.tokenizer
+if args.refactor_glu and not refactored_already:
+    #first we detect which neurons to refactor and then we update the model
+    sign_to_adapt = torch.sign(einops.einsum(
+        model.W_in.detach().cuda(), model.W_gate.detach().cuda(), "l d n, l d n -> l n"
+    ))
+    summary_dict = utils.refactor_glu(summary_dict, sign_to_adapt)
+    with open(SUMMARY_FILE, 'wb') as f:
+        pickle.dump(summary_dict, f)
+    del model
+    model = HookedTransformer.from_pretrained(args.model, refactor_glu=True, device='cuda')
 
 summary_dict['max_activations']['indices'] = summary_dict['max_activations']['indices'].to(torch.int)
 summary_dict['min_activations']['indices'] = summary_dict['min_activations']['indices'].to(torch.int)
@@ -70,11 +82,20 @@ maxmin_indices = torch.cat(
     [summary_dict['max_activations']['indices'], summary_dict['min_activations']['indices']]
 )#.to(torch.int)
 
-dataset = load_from_disk(f'{args.datasets_dir}/{args.dataset}')
+TOPK, N_LAYERS, N_NEURONS = summary_dict['max_activations']['indices'].shape
+if args.neurons=='all':
+    layer_neuron_list = [range(N_NEURONS) for _layer in range(N_LAYERS)]
+elif args.neurons:
+    layer_neuron_list = [[] for layer in range(N_LAYERS)]
+    for ln_str in args.neurons:
+        layer, neuron = tuple(int(n) for n in ln_str.split('.'))
+        layer_neuron_list[layer].append(neuron)
+elif args.test:
+    layer_neuron_list = [[0]]
 
 for layer,neuron_list in enumerate(layer_neuron_list):
     print(f'processing layer {layer}...')
-    layer_dir = f"{args.results_dir}/{RUN_CODE}/L{layer}"
+    layer_dir = f"{SAVE_PATH}/L{layer}"
     if not os.path.exists(layer_dir):
         os.mkdir(layer_dir)
     for neuron in tqdm(neuron_list):
@@ -82,7 +103,16 @@ for layer,neuron_list in enumerate(layer_neuron_list):
         if not os.path.exists(neuron_dir):
             os.mkdir(neuron_dir)
         #recomputing neuron activations on max and min examples
-        if not os.path.exists(f'{neuron_dir}/activations.pt'):
+        activations_file = f'{neuron_dir}/activations{"_refactored" if args.refactor_glu else ""}.pt'
+        activations_file_raw = f'{neuron_dir}/activations.pt'
+        if os.path.exists(activations_file):
+            dict_all = torch.load(activations_file)
+        elif args.refactor_glu and os.path.exists(activations_file_raw):
+            dict_all = torch.load(activations_file_raw)
+            dict_all['in']*=sign_to_adapt[layer,neuron]
+            dict_all['acts']*=sign_to_adapt[layer,neuron]
+            torch.save(dict_all, activations_file)
+        else:
             dict_all = recompute_acts(
                 model,
                 layer, neuron,
@@ -90,9 +120,7 @@ for layer,neuron_list in enumerate(layer_neuron_list):
                 # out_dict=dict_all,#dict_all is just updated
                 save_path=SAVE_PATH,
             )
-            torch.save(dict_all, f'{neuron_dir}/activations.pt')
-        else:
-            dict_all = torch.load(f'{neuron_dir}/activations.pt')
+            torch.save(dict_all, activations_file)
         #visualisation
         neuron_data = {
             'max_indices':maxmin_indices[:TOPK, layer, neuron],
