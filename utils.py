@@ -48,3 +48,11 @@ def refactor_glu(summary_dict, sign_to_adapt):
     summary_dict["max_activations"]["indices"] = max_activations_indices
     summary_dict["min_activations"]["indices"] = min_activations_indices
     return summary_dict
+
+def adapt_activations(dict_all):
+    topk = dict_all['acts'].shape[0]//2
+    new_dict = {
+        key: torch.cat((-value[topk:], -value[:topk]))
+        for key,value in dict_all.items()
+    }
+    return new_dict

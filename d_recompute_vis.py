@@ -109,8 +109,8 @@ for layer,neuron_list in enumerate(layer_neuron_list):
             dict_all = torch.load(activations_file)
         elif args.refactor_glu and os.path.exists(activations_file_raw):
             dict_all = torch.load(activations_file_raw)
-            dict_all['in']*=sign_to_adapt[layer,neuron]
-            dict_all['acts']*=sign_to_adapt[layer,neuron]
+            if sign_to_adapt[layer,neuron]==-1:
+                dict_all = utils.adapt_activations(dict_all)
             torch.save(dict_all, activations_file)
         else:
             dict_all = recompute_acts(
