@@ -255,7 +255,8 @@ if __name__=="__main__":
     max_seq_len = max(len(row) for row in dataset['input_ids'])
 
     print('computing activations...')
-    if not os.path.exists(f'{SAVE_PATH}/summary.pickle'):
+    SUMMARY_FILE = f'{SAVE_PATH}/summary{"_refactored" if args.refactor_glu else""}.pickle'
+    if not os.path.exists(SUMMARY_FILE):
         out_dict = get_all_neuron_acts_on_dataset(model,
                                                 dataset,
                                                 args=args,
@@ -263,6 +264,6 @@ if __name__=="__main__":
                                                 n_tokens=n_tokens,
                                                 path=SAVE_PATH,
                                                 )
-        with open(f'{SAVE_PATH}/summary.pickle', 'wb') as f:
+        with open(SUMMARY_FILE, 'wb') as f:
             pickle.dump(_move_to(out_dict, 'cpu'), f)
     print('done!')
