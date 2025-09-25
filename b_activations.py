@@ -218,6 +218,11 @@ if __name__=="__main__":
     parser = ArgumentParser()
     parser.add_argument('--dataset', default='dolma-small')
     parser.add_argument('--model', default='allenai/OLMo-1B-hf')
+    parser.add_argument(
+        '--refactor_glu',
+        action='store_true',
+        help='whether to refactor the weights such that cos(w_gate,w_in)>=0'
+    )
     parser.add_argument('--batch_size', default=1, type=int)
     parser.add_argument('--examples_per_neuron', default=16, type=int)
     parser.add_argument('--resume_from', default=0)
@@ -241,7 +246,7 @@ if __name__=="__main__":
 
     torch.set_grad_enabled(False)
 
-    model = HookedTransformer.from_pretrained(args.model)
+    model = HookedTransformer.from_pretrained(args.model, refactor_glu=args.refactor_glu)
 
     dataset = load_from_disk(f'{args.datasets_dir}/{args.dataset}')
     if args.test:
@@ -250,7 +255,8 @@ if __name__=="__main__":
     max_seq_len = max(len(row) for row in dataset['input_ids'])
 
     print('computing activations...')
-    if not os.path.exists(f'{SAVE_PATH}/summary.pickle'):
+    SUMMARY_FILE = f'{SAVE_PATH}/summary{"_refactored" if args.refactor_glu else""}.pickle'
+    if not os.path.exists(SUMMARY_FILE):
         out_dict = get_all_neuron_acts_on_dataset(model,
                                                 dataset,
                                                 args=args,
@@ -258,6 +264,6 @@ if __name__=="__main__":
                                                 n_tokens=n_tokens,
                                                 path=SAVE_PATH,
                                                 )
-        with open(f'{SAVE_PATH}/summary.pickle', 'wb') as f:
+        with open(SUMMARY_FILE, 'wb') as f:
             pickle.dump(_move_to(out_dict, 'cpu'), f)
     print('done!')
