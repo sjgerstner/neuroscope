@@ -1,5 +1,7 @@
 # Neuroscope
 
+**September 25: The following description is outdated. We will update it within the next week.**
+
 Code to visualise any given MLP neuron of a Transformer language model, especially via text examples that strongly activate it.
 
 Strongly inspired by Neel Nanda's <https://neuroscope.io/>, hence the name.
