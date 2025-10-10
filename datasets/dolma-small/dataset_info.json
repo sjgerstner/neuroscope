@@ -1,0 +1,195 @@
+{
+  "builder_name": "parquet",
+  "citation": "",
+  "config_name": "default",
+  "dataset_name": "dolma-v1_7-3_b",
+  "dataset_size": 10221435429,
+  "description": "",
+  "download_checksums": {
+    "hf://datasets/emozilla/dolma-v1_7-3B@3aaccad542a3284db8a0dd20e0ecb9543bbf1685/000_00000.parquet": {
+      "num_bytes": 185669120,
+      "checksum": null
+    },
+    "hf://datasets/emozilla/dolma-v1_7-3B@3aaccad542a3284db8a0dd20e0ecb9543bbf1685/000_00001.parquet": {
+      "num_bytes": 182856757,
+      "checksum": null
+    },
+    "hf://datasets/emozilla/dolma-v1_7-3B@3aaccad542a3284db8a0dd20e0ecb9543bbf1685/000_00002.parquet": {
+      "num_bytes": 185285798,
+      "checksum": null
+    },
+    "hf://datasets/emozilla/dolma-v1_7-3B@3aaccad542a3284db8a0dd20e0ecb9543bbf1685/000_00003.parquet": {
+      "num_bytes": 193418286,
+      "checksum": null
+    },
+    "hf://datasets/emozilla/dolma-v1_7-3B@3aaccad542a3284db8a0dd20e0ecb9543bbf1685/000_00004.parquet": {
+      "num_bytes": 186409074,
+      "checksum": null
+    },
+    "hf://datasets/emozilla/dolma-v1_7-3B@3aaccad542a3284db8a0dd20e0ecb9543bbf1685/000_00005.parquet": {
+      "num_bytes": 191484435,
+      "checksum": null
+    },
+    "hf://datasets/emozilla/dolma-v1_7-3B@3aaccad542a3284db8a0dd20e0ecb9543bbf1685/000_00006.parquet": {
+      "num_bytes": 184715022,
+      "checksum": null
+    },
+    "hf://datasets/emozilla/dolma-v1_7-3B@3aaccad542a3284db8a0dd20e0ecb9543bbf1685/000_00007.parquet": {
+      "num_bytes": 183560629,
+      "checksum": null
+    },
+    "hf://datasets/emozilla/dolma-v1_7-3B@3aaccad542a3284db8a0dd20e0ecb9543bbf1685/000_00008.parquet": {
+      "num_bytes": 184372548,
+      "checksum": null
+    },
+    "hf://datasets/emozilla/dolma-v1_7-3B@3aaccad542a3284db8a0dd20e0ecb9543bbf1685/000_00009.parquet": {
+      "num_bytes": 181131731,
+      "checksum": null
+    },
+    "hf://datasets/emozilla/dolma-v1_7-3B@3aaccad542a3284db8a0dd20e0ecb9543bbf1685/000_00010.parquet": {
+      "num_bytes": 181746498,
+      "checksum": null
+    },
+    "hf://datasets/emozilla/dolma-v1_7-3B@3aaccad542a3284db8a0dd20e0ecb9543bbf1685/000_00011.parquet": {
+      "num_bytes": 183750889,
+      "checksum": null
+    },
+    "hf://datasets/emozilla/dolma-v1_7-3B@3aaccad542a3284db8a0dd20e0ecb9543bbf1685/000_00012.parquet": {
+      "num_bytes": 189411141,
+      "checksum": null
+    },
+    "hf://datasets/emozilla/dolma-v1_7-3B@3aaccad542a3284db8a0dd20e0ecb9543bbf1685/000_00013.parquet": {
+      "num_bytes": 182033311,
+      "checksum": null
+    },
+    "hf://datasets/emozilla/dolma-v1_7-3B@3aaccad542a3284db8a0dd20e0ecb9543bbf1685/000_00014.parquet": {
+      "num_bytes": 185123719,
+      "checksum": null
+    },
+    "hf://datasets/emozilla/dolma-v1_7-3B@3aaccad542a3284db8a0dd20e0ecb9543bbf1685/000_00015.parquet": {
+      "num_bytes": 191161372,
+      "checksum": null
+    },
+    "hf://datasets/emozilla/dolma-v1_7-3B@3aaccad542a3284db8a0dd20e0ecb9543bbf1685/000_00016.parquet": {
+      "num_bytes": 188560528,
+      "checksum": null
+    },
+    "hf://datasets/emozilla/dolma-v1_7-3B@3aaccad542a3284db8a0dd20e0ecb9543bbf1685/000_00017.parquet": {
+      "num_bytes": 190059534,
+      "checksum": null
+    },
+    "hf://datasets/emozilla/dolma-v1_7-3B@3aaccad542a3284db8a0dd20e0ecb9543bbf1685/000_00018.parquet": {
+      "num_bytes": 182535497,
+      "checksum": null
+    },
+    "hf://datasets/emozilla/dolma-v1_7-3B@3aaccad542a3284db8a0dd20e0ecb9543bbf1685/000_00019.parquet": {
+      "num_bytes": 190292972,
+      "checksum": null
+    },
+    "hf://datasets/emozilla/dolma-v1_7-3B@3aaccad542a3284db8a0dd20e0ecb9543bbf1685/000_00020.parquet": {
+      "num_bytes": 198403251,
+      "checksum": null
+    },
+    "hf://datasets/emozilla/dolma-v1_7-3B@3aaccad542a3284db8a0dd20e0ecb9543bbf1685/000_00021.parquet": {
+      "num_bytes": 197541113,
+      "checksum": null
+    },
+    "hf://datasets/emozilla/dolma-v1_7-3B@3aaccad542a3284db8a0dd20e0ecb9543bbf1685/000_00022.parquet": {
+      "num_bytes": 190393519,
+      "checksum": null
+    },
+    "hf://datasets/emozilla/dolma-v1_7-3B@3aaccad542a3284db8a0dd20e0ecb9543bbf1685/000_00023.parquet": {
+      "num_bytes": 190510764,
+      "checksum": null
+    },
+    "hf://datasets/emozilla/dolma-v1_7-3B@3aaccad542a3284db8a0dd20e0ecb9543bbf1685/000_00024.parquet": {
+      "num_bytes": 190643212,
+      "checksum": null
+    },
+    "hf://datasets/emozilla/dolma-v1_7-3B@3aaccad542a3284db8a0dd20e0ecb9543bbf1685/000_00025.parquet": {
+      "num_bytes": 187817349,
+      "checksum": null
+    },
+    "hf://datasets/emozilla/dolma-v1_7-3B@3aaccad542a3284db8a0dd20e0ecb9543bbf1685/000_00026.parquet": {
+      "num_bytes": 185948013,
+      "checksum": null
+    },
+    "hf://datasets/emozilla/dolma-v1_7-3B@3aaccad542a3284db8a0dd20e0ecb9543bbf1685/000_00027.parquet": {
+      "num_bytes": 192474226,
+      "checksum": null
+    },
+    "hf://datasets/emozilla/dolma-v1_7-3B@3aaccad542a3284db8a0dd20e0ecb9543bbf1685/000_00028.parquet": {
+      "num_bytes": 191236797,
+      "checksum": null
+    },
+    "hf://datasets/emozilla/dolma-v1_7-3B@3aaccad542a3284db8a0dd20e0ecb9543bbf1685/000_00029.parquet": {
+      "num_bytes": 187018538,
+      "checksum": null
+    },
+    "hf://datasets/emozilla/dolma-v1_7-3B@3aaccad542a3284db8a0dd20e0ecb9543bbf1685/000_00030.parquet": {
+      "num_bytes": 187531906,
+      "checksum": null
+    },
+    "hf://datasets/emozilla/dolma-v1_7-3B@3aaccad542a3284db8a0dd20e0ecb9543bbf1685/000_00031.parquet": {
+      "num_bytes": 185340561,
+      "checksum": null
+    }
+  },
+  "download_size": 6008438110,
+  "features": {
+    "input_ids": {
+      "feature": {
+        "dtype": "int32",
+        "_type": "Value"
+      },
+      "_type": "Sequence"
+    },
+    "attention_mask": {
+      "feature": {
+        "dtype": "int8",
+        "_type": "Value"
+      },
+      "_type": "Sequence"
+    }
+  },
+  "homepage": "",
+  "license": "",
+  "size_in_bytes": 16229873539,
+  "splits": {
+    "train": {
+      "name": "train",
+      "num_bytes": 10221435429,
+      "num_examples": 3396967,
+      "shard_lengths": [
+        158972,
+        160803,
+        158495,
+        158933,
+        162641,
+        171897,
+        178753,
+        168837,
+        173475,
+        181514,
+        167958,
+        175977,
+        163143,
+        160649,
+        159756,
+        161613,
+        158618,
+        163302,
+        169372,
+        170770,
+        71489
+      ],
+      "dataset_name": "dolma-v1_7-3_b"
+    }
+  },
+  "version": {
+    "version_str": "0.0.0",
+    "major": 0,
+    "minor": 0,
+    "patch": 0
+  }
+}
