@@ -13,18 +13,8 @@ What's new compared to it:
 In a future version, I would like to:
 
 * Pre-compute more information about each neuron
-* Actually upload the pre-computed data, so that it becomes easy to create your own visualisation for any neuron you're interested in.
-
-## Warning
-
-In most of our code we used pickle.
-We later noticed we could have used torch.save() and torch.load() instead,
-which is more trustworthy and avoids trouble with different devices.
-We still submit the code with pickle for consistency with the data we saved.
-We plan to make it compatible with both in a later version.
-
-We do not submit any of the actual pickle data.
-So feel free to change your local version of the code.
+* Actually upload the pre-computed data, so that it becomes easy to create your own visualisation for any neuron you're interested in. (For the moment we just have the summary data with things such as activation frequency for each neuron, but not where it activates.)
+* Replace pickle by pt.
 
 ## Structure
 
