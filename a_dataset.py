@@ -8,7 +8,7 @@ from argparse import ArgumentParser
 import os
 
 from transformers import AutoTokenizer
-from datasets import load_dataset#, DatasetDict
+import datasets
 
 parser = ArgumentParser(description="""
 Preprocess given dataset for neuroscope,
@@ -57,8 +57,9 @@ group.add_argument('--Mtokens', type=int, default=20,
 group.add_argument('--save_all', action='store_true')
 args = parser.parse_args()
 
-dataset = load_dataset(args.dataset, split='train')
+dataset = datasets.load_dataset(args.dataset, split='train')
 print(dataset)
+assert isinstance(dataset, datasets.Dataset)
 
 if not args.save_all:#sample first to avoid wasted compute later
     print('selecting subset...')
@@ -71,7 +72,7 @@ if tokenizer.bos_token is None:
     tokenizer.bos_token = tokenizer.eos_token
     tokenizer.add_bos_token = args.add_bos_token
 
-def tokenization(example):
+def _tokenization(example):
     return tokenizer(
         example["text"],
         max_length=args.max_length,
@@ -81,7 +82,7 @@ def tokenization(example):
         )
 #TODO (low prio):
 # find a solution to keep id and metadata columns when returning overflowing tokens
-dataset = dataset.map(tokenization,
+dataset = dataset.map(_tokenization,
                  batched=True,
                  remove_columns=dataset.column_names if args.return_overflowing_tokens else None,
                  )
@@ -114,7 +115,9 @@ if not os.path.exists(args.datadir):
 if args.save_to:
     SAVE_TO = args.save_to
 else:
-    SAVE_TO = f"{args.dataset.split('/')[-1]}-{"-".join(args.tokenizer.split('/')[-1].split('-')[:2])}"
+    dataset_short = args.dataset.split('/')[-1]
+    tokenizer_short = "-".join(args.tokenizer.split('/')[-1].split('-')[:2])
+    SAVE_TO = f"{dataset_short}-{tokenizer_short}"
 dataset.save_to_disk(
     f"{args.datadir}/{SAVE_TO}"
     )
