@@ -7,8 +7,8 @@ Make tokenized blocks of fixed length.
 from argparse import ArgumentParser
 import os
 
-from datasets import load_dataset#, DatasetDict
 from transformers import AutoTokenizer
+from datasets import load_dataset#, DatasetDict
 
 parser = ArgumentParser(description="""
 Preprocess given dataset for neuroscope,
@@ -44,7 +44,8 @@ parser.add_argument('--add_bos_token', type=bool, default=True,
 parser.add_argument('--max_length', type=int, default=1024,
                     help="length of example token blocks")
 parser.add_argument('--return_overflowing_tokens', type=bool, default=False,
-                    help="make additional training examples with overflowing tokens")
+                    help="""Make additional training examples with overflowing tokens.
+                    In this case it is currently not possible to keep the ids and metadata.""")
 parser.add_argument('--padding', type=bool, default=False,
                     help="pad examples to args.max_length")
 group = parser.add_mutually_exclusive_group()
@@ -78,11 +79,11 @@ def tokenization(example):
         return_overflowing_tokens=args.return_overflowing_tokens,
         padding='max_length' if args.padding else False,
         )
-
+#TODO (low prio):
+# find a solution to keep id and metadata columns when returning overflowing tokens
 dataset = dataset.map(tokenization,
                  batched=True,
-                 remove_columns=dataset.column_names,
-                 #removing columns necessary if returning overflowing tokens, useful in any case
+                 remove_columns=dataset.column_names if args.return_overflowing_tokens else None,
                  )
 #input_ids, attention_mask, (overflow_to_sample_mapping)
 
@@ -111,9 +112,9 @@ print(tokenizer.decode(dataset[0]['input_ids']))
 if not os.path.exists(args.datadir):
     os.mkdir(args.datadir)
 if args.save_to:
-    save_to = args.save_to
+    SAVE_TO = args.save_to
 else:
-    save_to = f"{args.dataset.split('/')[-1]}-{"-".join(args.tokenizer.split('/')[-1].split('-')[:2])}"
+    SAVE_TO = f"{args.dataset.split('/')[-1]}-{"-".join(args.tokenizer.split('/')[-1].split('-')[:2])}"
 dataset.save_to_disk(
-    f"{args.datadir}/{save_to}"
+    f"{args.datadir}/{SAVE_TO}"
     )

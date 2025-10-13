@@ -1,3 +1,6 @@
+#TODO adapt to changes in activations code
+# (pickle vs pt, keys)
+
 from argparse import ArgumentParser
 import os
 import pickle
@@ -8,7 +11,8 @@ import einops
 from transformer_lens import HookedTransformer
 from datasets import load_from_disk
 
-from b_activations import _move_to
+from utils import _move_to
+from b_activations import HEAP_KEYS
 from b2_recompute import recompute_acts
 from c_neuron_vis import neuron_vis_full
 import utils
@@ -74,13 +78,20 @@ if args.refactor_glu and not refactored_already:
         pickle.dump(summary_dict, f)
     del model
     model = HookedTransformer.from_pretrained(args.model, refactor_glu=True, device='cuda')
-
-summary_dict['max_activations']['indices'] = summary_dict['max_activations']['indices'].to(torch.int)
-summary_dict['min_activations']['indices'] = summary_dict['min_activations']['indices'].to(torch.int)
+TOPK = summary_dict[('gate+_in+', 'max')]['indices'].shape[0]#topk layer neuron
+if args.neurons=='all':
+    layer_neuron_list = [range(model.cfg.d_mlp) for _layer in range(model.cfg.n_layers)]
+elif args.neurons:
+    layer_neuron_list = [[] for layer in range(model.cfg.n_layers)]
+    for ln_str in args.neurons:
+        layer, neuron = tuple(int(n) for n in ln_str.split('.'))
+        layer_neuron_list[layer].append(neuron)
+elif args.test:
+    layer_neuron_list = [[0]]
 
 maxmin_indices = torch.cat(
-    [summary_dict['max_activations']['indices'], summary_dict['min_activations']['indices']]
-)#.to(torch.int)
+    (summary_dict[key]['indices'] for key in HEAP_KEYS)
+)
 
 TOPK, N_LAYERS, N_NEURONS = summary_dict['max_activations']['indices'].shape
 if args.neurons=='all':
@@ -122,7 +133,7 @@ for layer,neuron_list in enumerate(layer_neuron_list):
             )
             torch.save(dict_all, activations_file)
         #visualisation
-        neuron_data = {
+        neuron_data = {#TODO
             'max_indices':maxmin_indices[:TOPK, layer, neuron],
             'min_indices':maxmin_indices[TOPK:, layer, neuron],
             'max_acts':dict_all['acts'][:TOPK],
@@ -136,7 +147,7 @@ for layer,neuron_list in enumerate(layer_neuron_list):
         }
         # We add some text to tell us what layer and neuron we're looking at
         heading = f"<h2>Layer: <b>{layer}</b>. Neuron Index: <b>{neuron}</b></h2>\n"
-        HTML = TITLE + heading + neuron_vis_full(
+        HTML = TITLE + heading + neuron_vis_full(#TODO
                 neuron_data=neuron_data,
                 dataset=dataset,
                 tokenizer=tokenizer,
