@@ -6,7 +6,6 @@ Other batch sizes will almost certainly lead to bugs.
 
 #TODO enable other batch sizes, don't forget problems with padding tokens
 #TODO replace pickle with pt
-#TODO refactor_glu
 
 from argparse import ArgumentParser
 import os
