@@ -4,6 +4,7 @@ The code was written with batch size 1 in mind.
 Other batch sizes will almost certainly lead to bugs.
 """
 
+#TODO (also other files) pathlib
 #TODO enable other batch sizes, don't forget problems with padding tokens
 #TODO replace pickle with pt
 
@@ -18,6 +19,7 @@ import einops
 from datasets import load_from_disk
 
 from utils import ModelWrapper, DatasetWrapper, _move_to
+#TODO how to use ModelWrapper if at all?
 
 HOOKS = ['ln2.hook_normalized', 'mlp.hook_post', 'mlp.hook_pre', 'mlp.hook_pre_linear']
 HEAP_KEYS = [
@@ -55,7 +57,7 @@ def _get_reduce_and_arg(cache_item, reduction, k=1, to_device='cpu'):
     )
     vi_dict = {
         'values': myred.values.to(to_device),
-        'indices':myred.indices.to(torch.int, to_device),
+        'indices':myred.indices.to(dtype=torch.int, device=to_device),
     }
     if k==1:
         for key,tensor in vi_dict.items():
@@ -79,7 +81,7 @@ def _get_reduce(cache_item, reduction, arg=False, k=1, use_cuda=True, to_device=
 def _get_all_neuron_acts(model, ids_and_mask, names_filter, max_seq_len=1024):
     #https://colab.research.google.com/github/neelnanda-io/TransformerLens/blob/main/demos/Interactive_Neuroscope.ipynb
 
-    intermediate = {key:None for key in KEYS}
+    intermediate = {}
 
     batch_size = ids_and_mask['input_ids'].shape[0]
     seq_len = ids_and_mask['input_ids'].shape[1]
@@ -122,7 +124,7 @@ def _get_all_neuron_acts(model, ids_and_mask, names_filter, max_seq_len=1024):
     bins['gate-_in+'] = (~gate_positive)*in_positive
     bins['gate-_in-'] = (~gate_positive)*~in_positive
     for key in bins:
-        intermediate[key] = _get_reduce(bins, 'sum')
+        intermediate[key] = _get_reduce(bins[key], 'sum')
 
     for t in HEAP_KEYS:
         hook, reduction = t
@@ -146,7 +148,22 @@ def _get_all_neuron_acts(model, ids_and_mask, names_filter, max_seq_len=1024):
 def get_all_neuron_acts_on_dataset(
     args, model, dataset, path=None
 ):
+    """Get all neuron activations on dataset.
+
+    Args:
+        args (Namespace): The argparse arguments
+        model (HookedTransformer): The model to run
+        dataset (Dataset): A Huggingface-style dataset to run the model on
+        path (str, optional): The path to save the data. Within this path we will have a subdirectory activation_cache.
+            Defaults to None (i.e., current directory).
+
+    Returns:
+        dict[Tensor]: a dict of tensors with all the relevant information (cached activations and summary statistics).
+        Keys are those in the KEYS constant.
+    """
     #https://colab.research.google.com/github/neelnanda-io/TransformerLens/blob/main/demos/Interactive_Neuroscope.ipynb
+    if path is None:
+        path = '.'
 
     batched_dataset = dataset.batch(
         batch_size=args.batch_size,
