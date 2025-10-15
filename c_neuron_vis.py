@@ -1,3 +1,5 @@
+"""Functions to visualise a neuron once all the data is computed"""
+
 # from argparse import ArgumentParser
 # import os
 # import pickle
@@ -22,6 +24,14 @@ def _vis_example(i, indices, acts, stop_tokens, dataset, tokenizer):
     )+"\n</div>"
 
 def neuron_vis_full(neuron_data, dataset, tokenizer):
+    """Full neuron visualisation for a given neuron.
+    Args:
+        neuron_data (dict): contains summary statistics and data on max/min activations
+        dataset (datasets.Dataset)
+        tokenizer (Huggingface tokenizer)
+    Returns:
+        html string
+    """
     htmls = []
     # # We first add the style to make each token element have a nice border
     # htmls = [style_string]

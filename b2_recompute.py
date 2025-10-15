@@ -1,13 +1,27 @@
+"""single function recompute_acts"""
 import pickle
 
 import torch
 import einops
 
-from transformers.activations import ACT2FN
+#from transformers.activations import ACT2FN
 
 from utils import ModelWrapper
 
 def recompute_acts(model:ModelWrapper, layer:int, neuron:int, indices:torch.Tensor[int], save_path:str):
+    """Recompute activations for the given neuron and dataset indices, using cached residual stream activations.
+
+    Args:
+        model (ModelWrapper): the model
+        layer (int): layer index
+        neuron (int): neuron index within layer
+        indices (torch.Tensor[int]): indices of relevant text examples within the dataset
+        save_path (str): path where cached residual stream activations are stored.
+            Specifically, this should be the parent directory of "activation_cache".
+
+    Returns:
+        dict: dictionary with keys 'gate','in','acts', containing tensors of shape (sample, pos)
+    """
     ln_cache=[]
     for i in indices:
         with open(f"{save_path}/activation_cache/batch{i}.pickle", 'rb') as f:
