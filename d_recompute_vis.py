@@ -67,6 +67,8 @@ model = HookedTransformer.from_pretrained(
     refactor_glu=args.refactor_glu and refactored_already,#not yet refactor_glu=args.refactor_glu
     device='cpu' if (args.refactor_glu and not refactored_already) else 'cuda',
 )
+assert model.W_gate is not None
+model = utils.ModelWrapper(model)
 tokenizer = model.tokenizer
 if args.refactor_glu and not refactored_already:
     #first we detect which neurons to refactor and then we update the model
