@@ -68,7 +68,7 @@ model = HookedTransformer.from_pretrained(
     device='cpu' if (args.refactor_glu and not refactored_already) else 'cuda',
 )
 assert model.W_gate is not None
-model = utils.ModelWrapper(model)
+
 tokenizer = model.tokenizer
 if args.refactor_glu and not refactored_already:
     #first we detect which neurons to refactor and then we update the model
@@ -80,7 +80,8 @@ if args.refactor_glu and not refactored_already:
         pickle.dump(summary_dict, f)
     del model
     model = HookedTransformer.from_pretrained(args.model, refactor_glu=True, device='cuda')
-TOPK = summary_dict[('gate+_in+', 'max')]['indices'].shape[0]#topk layer neuron
+model = utils.ModelWrapper(model)
+#TOPK = summary_dict[('gate+_in+', 'max')]['indices'].shape[0]#topk layer neuron
 if args.neurons=='all':
     layer_neuron_list = [range(model.cfg.d_mlp) for _layer in range(model.cfg.n_layers)]
 elif args.neurons:
@@ -95,7 +96,7 @@ maxmin_indices = torch.cat(
     (summary_dict[key]['indices'] for key in HEAP_KEYS)
 )
 
-TOPK, N_LAYERS, N_NEURONS = summary_dict['max_activations']['indices'].shape
+TOPK, N_LAYERS, N_NEURONS = summary_dict[('gate+_in+', 'max')]['indices'].shape
 if args.neurons=='all':
     layer_neuron_list = [range(N_NEURONS) for _layer in range(N_LAYERS)]
 elif args.neurons:
@@ -135,22 +136,27 @@ for layer,neuron_list in enumerate(layer_neuron_list):
             )
             torch.save(dict_all, activations_file)
         #visualisation
-        neuron_data = {#TODO
-            'max_indices':maxmin_indices[:TOPK, layer, neuron],
-            'min_indices':maxmin_indices[TOPK:, layer, neuron],
-            'max_acts':dict_all['acts'][:TOPK],
-            'min_acts':dict_all['acts'][TOPK:],
-            'max_val':summary_dict['max_activations']['values'][0,layer,neuron],
-            'min_val':summary_dict['min_activations']['values'][0,layer,neuron],
-            'avg_val':summary_dict['summary_mean'][layer,neuron],
-            'act_freq':summary_dict['summary_freq'][layer,neuron],
-            'argmax_tokens':summary_dict['max_activations']['indices'][:,layer,neuron],
-            'argmin_tokens':summary_dict['min_activations']['indices'][:,layer,neuron],
-        }
+        for key,value in summary_dict.items():
+            if isinstance(value, torch.Tensor):
+                dict_all[key]=value[...,layer,neuron]
+            elif isinstance(value, dict):
+                dict_all[key]={key1:value1[...,layer,neuron] for key1,value1 in value.items()}
+        # neuron_data = {
+        #     'max_indices':maxmin_indices[:TOPK, layer, neuron],
+        #     'min_indices':maxmin_indices[TOPK:, layer, neuron],
+        #     'max_acts':dict_all['acts'][:TOPK],
+        #     'min_acts':dict_all['acts'][TOPK:],
+        #     'max_val':summary_dict[('hook_post', 'max')]['values'][0,layer,neuron],
+        #     'min_val':summary_dict[('hook_post', 'min')]['values'][0,layer,neuron],
+        #     'avg_val':summary_dict['mean'][layer,neuron],
+        #     'act_freq':summary_dict['summary_freq'][layer,neuron],
+        #     'argmax_tokens':summary_dict[('hook_post', 'max')]['indices'][:,layer,neuron],
+        #     'argmin_tokens':summary_dict[('hook_post', 'min')]['indices'][:,layer,neuron],
+        # }
         # We add some text to tell us what layer and neuron we're looking at
         heading = f"<h2>Layer: <b>{layer}</b>. Neuron Index: <b>{neuron}</b></h2>\n"
-        HTML = TITLE + heading + neuron_vis_full(#TODO
-                neuron_data=neuron_data,
+        HTML = TITLE + heading + neuron_vis_full(#TODO adapt this function to new data structure
+                neuron_data=dict_all,
                 dataset=dataset,
                 tokenizer=tokenizer,
         )

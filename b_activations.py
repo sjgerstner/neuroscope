@@ -24,24 +24,25 @@ from utils import DatasetWrapper, _move_to
 
 HOOKS = ['ln2.hook_normalized', 'mlp.hook_post', 'mlp.hook_pre', 'mlp.hook_pre_linear']
 HEAP_KEYS = [
-        ('hook_post', 'max'),#TODO not needed any more?
-        ('hook_post', 'min'),
-        ('hook_pre_linear', 'max'),
-        ('hook_pre_linear', 'min'),
-        ('hook_pre', 'max'),
-        ('hook_pre', 'min'),
-        ('swish', 'min'),
-        ('gate+_in+', 'max'),
-        ('gate+_in-', 'min'),
-        ('gate-_in+', 'min'),
-        ('gate-_in-', 'max'),
+    #TODO the first two may not needed any more? because it's included in all the gate_in combinations
+    ('hook_post', 'max'),
+    ('hook_post', 'min'),
+    ('hook_pre_linear', 'max'),
+    ('hook_pre_linear', 'min'),
+    ('hook_pre', 'max'),
+    ('hook_pre', 'min'),
+    ('swish', 'min'),
+    ('gate+_in+', 'max'),
+    ('gate+_in-', 'min'),
+    ('gate-_in+', 'min'),
+    ('gate-_in-', 'max'),
 ]
 SUMMARY_KEYS = [
         'mean',
         'gate+_in+',
         'gate+_in-',
         'gate-_in+',
-        'gate-_in-',
+        'gate-_in-',#TODO this is just 1 minus the rest
 ]
 KEYS = ['ln_cache', *HEAP_KEYS, *SUMMARY_KEYS]
 
