@@ -20,8 +20,7 @@ import datasets
 
 from transformer_lens import HookedTransformer
 
-from utils import ModelWrapper, DatasetWrapper, _move_to
-#TODO how to use ModelWrapper if at all?
+from utils import DatasetWrapper, _move_to
 
 HOOKS = ['ln2.hook_normalized', 'mlp.hook_post', 'mlp.hook_pre', 'mlp.hook_pre_linear']
 HEAP_KEYS = [
