@@ -5,8 +5,8 @@ Other batch sizes will almost certainly lead to bugs.
 """
 
 #TODO (also other files) pathlib
-#TODO enable other batch sizes, don't forget problems with padding tokens
 #TODO replace pickle with pt
+#TODO enable other batch sizes, don't forget problems with padding tokens
 
 from argparse import ArgumentParser
 import os
@@ -16,7 +16,9 @@ from tqdm import tqdm
 import torch
 import einops
 
-from datasets import load_from_disk
+import datasets
+
+from transformer_lens import HookedTransformer
 
 from utils import ModelWrapper, DatasetWrapper, _move_to
 #TODO how to use ModelWrapper if at all?
@@ -123,8 +125,8 @@ def _get_all_neuron_acts(model, ids_and_mask, names_filter, max_seq_len=1024):
     bins['gate+_in-'] = gate_positive*~in_positive
     bins['gate-_in+'] = (~gate_positive)*in_positive
     bins['gate-_in-'] = (~gate_positive)*~in_positive
-    for key in bins:
-        intermediate[key] = _get_reduce(bins[key], 'sum')
+    for key,value in bins.items():
+        intermediate[key] = _get_reduce(value, 'sum')
 
     for t in HEAP_KEYS:
         hook, reduction = t
@@ -154,11 +156,13 @@ def get_all_neuron_acts_on_dataset(
         args (Namespace): The argparse arguments
         model (HookedTransformer): The model to run
         dataset (Dataset): A Huggingface-style dataset to run the model on
-        path (str, optional): The path to save the data. Within this path we will have a subdirectory activation_cache.
+        path (str, optional): The path to save the data.
+            Within this path we will have a subdirectory activation_cache.
             Defaults to None (i.e., current directory).
 
     Returns:
-        dict[Tensor]: a dict of tensors with all the relevant information (cached activations and summary statistics).
+        dict[Tensor]: a dict of tensors with all the relevant information
+            (cached activations and summary statistics).
         Keys are those in the KEYS constant.
     """
     #https://colab.research.google.com/github/neelnanda-io/TransformerLens/blob/main/demos/Interactive_Neuroscope.ipynb
@@ -238,13 +242,6 @@ def get_all_neuron_acts_on_dataset(
 
     return out_dict
 
-def topk_indices(maxact, k=16, largest=True, use_cuda=True):
-    if use_cuda and torch.cuda.is_available():
-        maxact = maxact.cuda()
-    _values, indices = torch.topk(maxact, k=k, dim=0, largest=largest)
-    #sample layer neuron -> k layer neuron, entries are indices along sample dimension
-    return indices
-
 if __name__=="__main__":
     parser = ArgumentParser()
     parser.add_argument('--dataset', default='dolma-small')
@@ -279,7 +276,8 @@ if __name__=="__main__":
 
     model = HookedTransformer.from_pretrained(args.model, refactor_glu=args.refactor_glu)
 
-    dataset = load_from_disk(f'{args.datasets_dir}/{args.dataset}')
+    dataset = datasets.load_from_disk(f'{args.datasets_dir}/{args.dataset}')
+    assert isinstance(dataset, datasets.Dataset)
     if args.test:
         dataset = dataset.select(range(2))
     dataset = DatasetWrapper(dataset)

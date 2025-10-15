@@ -89,3 +89,11 @@ def _move_to(dict_of_tensors, device):
         elif isinstance(value, dict):
             dict_of_tensors[key] = _move_to(value, device)
     return dict_of_tensors
+
+def topk_indices(maxact, k=16, largest=True, use_cuda=True):
+    """Wrapper around torch.topk. Not actually used in the current version."""
+    if use_cuda and torch.cuda.is_available():
+        maxact = maxact.cuda()
+    _values, indices = torch.topk(maxact, k=k, dim=0, largest=largest)
+    #sample layer neuron -> k layer neuron, entries are indices along sample dimension
+    return indices
