@@ -12,7 +12,6 @@ from transformer_lens import HookedTransformer
 from datasets import load_from_disk
 
 from utils import _move_to
-from b_activations import HEAP_KEYS
 from b2_recompute import recompute_acts
 from c_neuron_vis import neuron_vis_full
 import utils
@@ -93,7 +92,7 @@ elif args.test:
     layer_neuron_list = [[0]]
 
 maxmin_indices = torch.cat(
-    (summary_dict[key]['indices'] for key in HEAP_KEYS)
+    [value['indices'] for key,value in summary_dict.items() if key[-1] in ['max','min']]
 )
 
 TOPK, N_LAYERS, N_NEURONS = summary_dict[('gate+_in+', 'max')]['indices'].shape
