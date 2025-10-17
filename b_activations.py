@@ -182,7 +182,7 @@ def get_all_neuron_acts_on_dataset(
                 elif key[-1] in ['max', 'min']:
                     out_dict[key] = {
                         'values':value['values'],
-                        'indices':torch.full_like(value['values'], 0)
+                        'indices':torch.full_like(value['values'], 0)#TODO save position within sequence!
                     }
         else:
             for key,value in out_dict.items():

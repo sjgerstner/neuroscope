@@ -10,14 +10,18 @@
 
 from circuitsvis.tokens import colored_tokens
 
-def _vis_example(i, indices, acts, stop_tokens, dataset, tokenizer):
+from b_activations import CASES, VALUES_TO_SUMMARISE
+
+def _vis_example(i, indices, acts, dataset, tokenizer, stop_tokens=None):
     index = int(indices[i])
     #print(dataset[index]['input_ids'])#tensor of ints
     tokens = tokenizer.batch_decode(#or convert_ids_to_tokens
         dataset[index]['input_ids']
-    )[:stop_tokens[i]]
+    )
+    if stop_tokens is not None:
+        tokens = tokens[:stop_tokens[i]]
     return f'<h4>Example {i}</h4>\n'+str(
-        colored_tokens(
+        colored_tokens(#TODO colored_tokens_multi with the different activation types
             tokens,
             acts[i][:len(tokens)]
         )
@@ -35,44 +39,50 @@ def neuron_vis_full(neuron_data, dataset, tokenizer):
     htmls = []
     # # We first add the style to make each token element have a nice border
     # htmls = [style_string]
-    # We then add a line telling us the limits of our range
-    htmls.append(
-        f"""<p>
-        Max Act.: <b>{neuron_data['max_val']:.4f}</b>.
-        Min Act.: <b>{neuron_data['min_val']:.4f}</b>.
-        Avg Act.: <b>{neuron_data['avg_val']:.4f}</b>.
-        </p>
-        <p>
-        Act. Frequency: <b>{neuron_data['act_freq']:.2%}</b>.
-        </p>"""
-    )
-    htmls.append('<h3>Max activations</h3>')
-    for i in range(neuron_data['max_indices'].shape[0]):
-        # print(max_indices[i])
-        # print(dataset[int(max_indices[i])])
-        htmls.append(
-            _vis_example(
-                i,
-                neuron_data['max_indices'],
-                neuron_data['max_acts'],
-                neuron_data['argmax_tokens'],
-                dataset,
-                tokenizer
-                )
+    # We then add a kind of
+    # "table": cases are main columns,
+    # and within that we have paragraphs with frequency,
+    # and max/min/mean (all within one paragraph)
+    # of gate/swish/in/post (separate paragraphs)
+    htmls.append('<table><tr>')
+    for case in CASES:
+        htmls.append(f"<td><h4>{case}</h4>")
+        htmls.append(f"<p>Frequency: <b>{neuron_data[(case, 'freq')]:.2%}</b>.</p>")
+        for act_type in VALUES_TO_SUMMARISE:
+            htmls.append(
+                f"""<p>
+                <b>{act_type}</b>:
+                Max: <b>{neuron_data[(case,act_type,'max')]['values'][0]:.4f}</b>;
+                Min: <b>{neuron_data[(case,act_type,'min')]['values'][0]:.4f}</b>;
+                Avg: <b>{neuron_data[(case,act_type,'sum')]:.4f}</b>.
+                </p>
+                """
             )
-    htmls.append('<hr>')
-    htmls.append('<h3>Min activations</h3>')
-    for i in range(neuron_data['min_indices'].shape[0]):
-        htmls.append(
-            _vis_example(
-                i,
-                neuron_data['min_indices'],
-                neuron_data['min_acts'],
-                neuron_data['argmin_tokens'],
-                dataset,
-                tokenizer
-                )
-            )
+        htmls.append('</td>')
+    htmls.append('</tr></table>')
+    #TODO possibility to toggle the lists
+    for case in CASES:
+        htmls.append(f'<h2>Prototypical activations for case {case}</h2>')
+        for act_type in VALUES_TO_SUMMARISE:
+            htmls.append(f'<h3>Prototypical {act_type} activations')
+            for reduction in ['max','min']:
+                htmls.append(f'<h4>{reduction}</h4>')
+                for i in range(neuron_data[(case, act_type, reduction)]['indices'].shape[0]):
+                    # print(max_indices[i])
+                    # print(dataset[int(max_indices[i])])
+                    htmls.append(
+                        _vis_example(
+                            i=i,
+                            indices=neuron_data[(case, act_type, reduction)]['indices'],
+                            acts=neuron_data['acts'][(case, act_type, reduction)],
+                            #stop_tokens=neuron_data[(case, act_type, reduction)]['indices'],#TODO
+                            dataset=dataset,
+                            tokenizer=tokenizer
+                            )
+                        )
+                htmls.append('<hr>')
+            htmls.append('<hr>')
+        htmls.append('<hr>')
     return "\n".join(htmls)
 
 # if __name__=="__main__":

@@ -91,8 +91,9 @@ elif args.neurons:
 elif args.test:
     layer_neuron_list = [[0]]
 
+maxmin_keys = [key for key in summary_dict.keys() if key[-1] in ['max','min']]
 maxmin_indices = torch.cat(
-    [value['indices'] for key,value in summary_dict.items() if key[-1] in ['max','min']]
+    [summary_dict[key]['indices'] for key in maxmin_keys]
 )
 
 TOPK, N_LAYERS, N_NEURONS = summary_dict[('gate+_in+', 'max')]['indices'].shape
@@ -119,12 +120,13 @@ for layer,neuron_list in enumerate(layer_neuron_list):
         activations_file = f'{neuron_dir}/activations{"_refactored" if args.refactor_glu else ""}.pt'
         activations_file_raw = f'{neuron_dir}/activations.pt'
         if os.path.exists(activations_file):
-            dict_all = torch.load(activations_file)
+        #TODO we may need to comment this out because the internal format changed
+            neuron_data = torch.load(activations_file)
         elif args.refactor_glu and os.path.exists(activations_file_raw):
-            dict_all = torch.load(activations_file_raw)
+            neuron_data = torch.load(activations_file_raw)
             if sign_to_adapt[layer,neuron]==-1:
-                dict_all = utils.adapt_activations(dict_all)
-            torch.save(dict_all, activations_file)
+                neuron_data = utils.adapt_activations(neuron_data)
+            torch.save(neuron_data, activations_file)
         else:
             dict_all = recompute_acts(
                 model,
@@ -133,13 +135,22 @@ for layer,neuron_list in enumerate(layer_neuron_list):
                 # out_dict=dict_all,#dict_all is just updated
                 save_path=SAVE_PATH,
             )
-            torch.save(dict_all, activations_file)
+            neuron_data = {
+                recomputed_type_key : {
+                    case_key : stacked_tensor[i*TOPK:(i+1)*TOPK]
+                    for i,case_key in enumerate(maxmin_keys)
+                }
+                for recomputed_type_key,stacked_tensor in dict_all.items()
+            }
+            #outer key is the recomputed activation type, inner key is (case, summarised_type, ['max','min'])
+            #the other way round doesn't work because of what comes next!
+            torch.save(neuron_data, activations_file)
         #visualisation
         for key,value in summary_dict.items():
             if isinstance(value, torch.Tensor):
-                dict_all[key]=value[...,layer,neuron]
+                neuron_data[key]=value[...,layer,neuron]
             elif isinstance(value, dict):
-                dict_all[key]={key1:value1[...,layer,neuron] for key1,value1 in value.items()}
+                neuron_data[key]={key1:value1[...,layer,neuron] for key1,value1 in value.items()}
         # neuron_data = {
         #     'max_indices':maxmin_indices[:TOPK, layer, neuron],
         #     'min_indices':maxmin_indices[TOPK:, layer, neuron],
@@ -154,8 +165,8 @@ for layer,neuron_list in enumerate(layer_neuron_list):
         # }
         # We add some text to tell us what layer and neuron we're looking at
         heading = f"<h2>Layer: <b>{layer}</b>. Neuron Index: <b>{neuron}</b></h2>\n"
-        HTML = TITLE + heading + neuron_vis_full(#TODO adapt this function to new data structure
-                neuron_data=dict_all,
+        HTML = TITLE + heading + neuron_vis_full(
+                neuron_data=neuron_data,
                 dataset=dataset,
                 tokenizer=tokenizer,
         )
