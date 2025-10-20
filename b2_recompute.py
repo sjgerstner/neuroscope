@@ -45,5 +45,6 @@ def recompute_acts(model:ModelWrapper, layer:int, neuron:int, indices:torch.Tens
         'sample pos d_model, d_model -> sample pos'
         )
     intermediate['acts'] = intermediate['gate']*intermediate['in']
+    #TODO get position of max/min activation in sequence
 
     return intermediate

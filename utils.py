@@ -78,21 +78,49 @@ def adapt_activations(dict_all):
 class ModelWrapper(HookedTransformer):
     """Allows to directly access the (sub) activation function of the model,
     (i.e., Swish in the case of SwiGLU etc.)
-    without looking it up every time
+    without looking it up every time.
+    Initialise directly with model = ModelWrapper.from_pretrained(...)
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.actfn = ACT2FN[self.cfg.act_fn]
 
-class DatasetWrapper(Dataset):
-    """Allows to directly access the following properties of a dataset:
-        self.n_tokens: total number of tokens
-        self.max_seq_len: maximum length in tokens of a single example
-    """
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.n_tokens = sum(len(row) for row in self['input_ids'])
-        self.max_seq_len = max(len(row) for row in self['input_ids'])
+# class DatasetWrapper(Dataset):
+#     """Allows to directly access the following properties of a dataset:
+#         self.n_tokens: total number of tokens
+#         self.max_seq_len: maximum length in tokens of a single example
+#     You should FIRST create the Dataset object (e.g. with ds = datasets.load_from_disk(...))
+#     and only THEN call ds = DatasetWrapper(ds).
+#     """
+#     _n_tokens=None
+#     _max_seq_len=None
+#     # def __init__(self, *args, **kwargs):
+#     #     super().__init__(*args, **kwargs)
+#     #     self.add_properties()
+
+#     # @classmethod
+#     # def load_from_disk(cls, *args, **kwargs):
+#     #     #necessary because apparently load_from_disk does not call __init__ under the hood
+#     #     base_dataset = super().load_from_disk(*args, **kwargs)
+#     #     base_dataset.add_properties()
+
+#     # @staticmethod
+#     # def add_properties(dataset:Dataset):
+#     #     self.n_tokens = sum(len(row) for row in self['input_ids'])
+#     #     self.max_seq_len = max(len(row) for row in self['input_ids'])
+#     def n_tokens(self):
+#         if not self._n_tokens is not None:
+#             self._n_tokens = sum(len(row) for row in self['input_ids'])
+#         return self._n_tokens
+#     def max_seq_len(self):
+#         if not self._max_seq_len is not None:
+#             self._max_seq_len = max(len(row) for row in self['input_ids'])
+#         return self._max_seq_len
+
+def add_properties(dataset:Dataset):
+    setattr(dataset, "n_tokens", sum(len(row) for row in dataset['input_ids']))
+    setattr(dataset, "max_seq_len", max(len(row) for row in dataset['input_ids']))
+    return
 
 def _move_to(dict_of_tensors, device):
     for key,value in dict_of_tensors.items():
