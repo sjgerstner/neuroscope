@@ -20,7 +20,7 @@ from transformer_lens import HookedTransformer
 
 import datasets
 
-from utils import DatasetWrapper, ModelWrapper, _move_to
+from utils import ModelWrapper, _move_to, add_properties
 
 HOOKS_TO_CACHE = ['ln2.hook_normalized', 'mlp.hook_post', 'mlp.hook_pre', 'mlp.hook_pre_linear']
 VALUES_TO_SUMMARISE = ['hook_post', 'hook_pre_linear', 'hook_pre', 'swish']
@@ -32,7 +32,7 @@ REDUCTIONS = ['max', 'min', 'sum']
 
 def _get_reduce_and_arg(cache_item, reduction, k=1, to_device='cpu'):
     if reduction not in ('max', 'min', 'top', 'bottom'):
-        raise NotImplementedError
+        raise NotImplementedError(f"reduction {reduction} not implemented")
 
     #... ? layer neuron -> ... k layer neuron
     myred = torch.topk(
@@ -125,7 +125,7 @@ def _get_all_neuron_acts(model, ids_and_mask, names_filter, max_seq_len=1024):
                 intermediate[(case, key_to_summarise, reduction)] = _get_reduce(
                     values,
                     reduction=reduction,
-                    arg=True,
+                    arg=(reduction!="sum"),
                 )
                 #batch pos layer neuron -> {'values': batch layer neuron, 'indices': batch layer neuron}
     return intermediate
@@ -182,7 +182,7 @@ def get_all_neuron_acts_on_dataset(
                 elif key[-1] in ['max', 'min']:
                     out_dict[key] = {
                         'values':value['values'],
-                        'indices':torch.full_like(value['values'], 0)#TODO save position within sequence!
+                        'indices':torch.full_like(value['values'], 0)
                     }
         else:
             for key,value in out_dict.items():
@@ -227,7 +227,7 @@ def get_all_neuron_acts_on_dataset(
     for key in out_dict:
         if key[-1]=='sum':
             #for the moment frequencies are still absolute numbers so we can do this
-            out_dict[key] = out_dict[key].to(torch.float) / float(out_dict[(key[0],'freq')])
+            out_dict[key] = out_dict[key].to(torch.float) / out_dict[(key[0],'freq')].to(torch.float)
             #now the 'sum' entry is actually a mean!
     for key in out_dict:
         if key[-1]=='freq':
@@ -267,14 +267,13 @@ if __name__=="__main__":
 
     torch.set_grad_enabled(False)
 
-    model = HookedTransformer.from_pretrained(args.model, refactor_glu=args.refactor_glu)
-    model = ModelWrapper(model)
+    model = ModelWrapper.from_pretrained(args.model, refactor_glu=args.refactor_glu)
 
     dataset = datasets.load_from_disk(f'{args.datasets_dir}/{args.dataset}')
     assert isinstance(dataset, datasets.Dataset)
     if args.test:
         dataset = dataset.select(range(2))
-    dataset = DatasetWrapper(dataset)
+    add_properties(dataset)
 
     print('computing activations...')
     SUMMARY_FILE = f'{SAVE_PATH}/summary{"_refactored" if args.refactor_glu else""}.pickle'
