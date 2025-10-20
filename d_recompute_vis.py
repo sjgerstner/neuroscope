@@ -61,7 +61,7 @@ with open(MY_FILE, 'rb') as f:
 
 dataset = load_from_disk(f'{args.datasets_dir}/{args.dataset}')
 
-model = HookedTransformer.from_pretrained(
+model = utils.ModelWrapper.from_pretrained(
     args.model,
     refactor_glu=args.refactor_glu and refactored_already,#not yet refactor_glu=args.refactor_glu
     device='cpu' if (args.refactor_glu and not refactored_already) else 'cuda',
@@ -78,8 +78,7 @@ if args.refactor_glu and not refactored_already:
     with open(SUMMARY_FILE, 'wb') as f:
         pickle.dump(summary_dict, f)
     del model
-    model = HookedTransformer.from_pretrained(args.model, refactor_glu=True, device='cuda')
-model = utils.ModelWrapper(model)
+    model = utils.ModelWrapper.from_pretrained(args.model, refactor_glu=True, device='cuda')
 #TOPK = summary_dict[('gate+_in+', 'max')]['indices'].shape[0]#topk layer neuron
 if args.neurons=='all':
     layer_neuron_list = [range(model.cfg.d_mlp) for _layer in range(model.cfg.n_layers)]
@@ -96,7 +95,7 @@ maxmin_indices = torch.cat(
     [summary_dict[key]['indices'] for key in maxmin_keys]
 )
 
-TOPK, N_LAYERS, N_NEURONS = summary_dict[('gate+_in+', 'max')]['indices'].shape
+TOPK, N_LAYERS, N_NEURONS = summary_dict[('gate+_in+', 'hook_post', 'max')]['indices'].shape
 if args.neurons=='all':
     layer_neuron_list = [range(N_NEURONS) for _layer in range(N_LAYERS)]
 elif args.neurons:
