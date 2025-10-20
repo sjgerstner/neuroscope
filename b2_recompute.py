@@ -8,7 +8,7 @@ import einops
 
 from utils import ModelWrapper
 
-def recompute_acts(model:ModelWrapper, layer:int, neuron:int, indices:torch.Tensor[int], save_path:str):
+def recompute_acts(model:ModelWrapper, layer:int, neuron:int, indices:torch.Tensor, save_path:str):
     """Recompute activations for the given neuron and dataset indices, using cached residual stream activations.
 
     Args:
@@ -24,6 +24,7 @@ def recompute_acts(model:ModelWrapper, layer:int, neuron:int, indices:torch.Tens
     """
     ln_cache=[]
     for i in indices:
+        i=int(i)#just in case
         with open(f"{save_path}/activation_cache/batch{i}.pickle", 'rb') as f:
             subcache = pickle.load(f)['ln_cache'] #batch pos layer d_model
             ln_cache.append(subcache[:,:,layer,:])
