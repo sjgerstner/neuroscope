@@ -8,7 +8,6 @@ from tqdm import tqdm
 
 import torch
 import einops
-from transformer_lens import HookedTransformer
 from datasets import load_from_disk
 
 from utils import _move_to
@@ -57,7 +56,15 @@ else:
     MY_FILE = f'{SAVE_PATH}/summary.pickle'
 with open(MY_FILE, 'rb') as f:
     summary_dict = _move_to(pickle.load(f), 'cuda')
-    print(f"summary_dict: {summary_dict.keys()}")
+if args.test:
+    #print(f"summary_dict: {summary_dict.keys()}")
+    for key,value in summary_dict.items():
+        if isinstance(value, torch.Tensor):
+            print(f'{key}: {value[...,0,0]}')
+        elif isinstance(value, dict):
+            print(f'{key}:')
+            for key1,value1 in value.items():
+                print(f'> {key1}: {value1[...,0,0]}')
 
 dataset = load_from_disk(f'{args.datasets_dir}/{args.dataset}')
 

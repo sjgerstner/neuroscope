@@ -16,8 +16,6 @@ from tqdm import tqdm
 import torch
 import einops
 
-from transformer_lens import HookedTransformer
-
 import datasets
 
 from utils import ModelWrapper, _move_to, add_properties
@@ -47,8 +45,8 @@ def _get_reduce_and_arg(cache_item, reduction, k=1, to_device='cpu'):
     }
     if k==1:
         for key,tensor in vi_dict.items():
-            vi_dict[key] = einops.reduce(
-                tensor, '... 1 layer neuron -> ... layer neuron', reduction
+            vi_dict[key] = einops.rearrange(
+                tensor, '... 1 layer neuron -> ... layer neuron'
             )
     return vi_dict
 
@@ -112,18 +110,16 @@ def _get_all_neuron_acts(model, ids_and_mask, names_filter, max_seq_len=1024):
     for case,zero_one in bins.items():
         intermediate[(case, 'freq')] = _get_reduce(zero_one, 'sum')
         for key_to_summarise in VALUES_TO_SUMMARISE:
+            if key_to_summarise.startswith('hook'):
+                values = cache[f'mlp.{key_to_summarise}']
+            elif key_to_summarise=='swish':
+                values = model.actfn(cache['mlp.hook_pre'])
+            else:
+                raise NotImplementedError(key_to_summarise)
+            relevant_values = values*zero_one
             for reduction in REDUCTIONS:
-                if key_to_summarise.startswith('hook'):
-                    values = cache[f'mlp.{key_to_summarise}']
-                # elif key_to_summarise.startswith('gate'):
-                #     values = cache['mlp.hook_post']*bins[key_to_summarise]
-                elif key_to_summarise=='swish':
-                    values = model.actfn(cache['mlp.hook_pre'])
-                else:
-                    raise NotImplementedError(key_to_summarise)
-                values *= zero_one
                 intermediate[(case, key_to_summarise, reduction)] = _get_reduce(
-                    values,
+                    relevant_values,
                     reduction=reduction,
                     arg=(reduction!="sum"),
                 )
@@ -206,32 +202,38 @@ def get_all_neuron_acts_on_dataset(
                                 ]
                             )
                     }#both entries: sample layer neuron
-                    if i>=args.examples_per_neuron:#running topk computation
-                        #print(out_dict[key]['values'].shape) #should be: k layer neuron
-                        vi = _get_reduce(
-                            out_dict[key]['values'],
-                            reduction=key[1],
-                            arg=True,
-                            k=args.examples_per_neuron,
-                            )#k+1 layer neuron -> k layer neuron
-                        out_dict[key]['values'] = vi['values']
-                        out_dict[key]['indices'] = torch.gather(
-                            out_dict[key]['indices'], dim=0, index=vi['indices']
-                        )
-                        #original dataset indices!
-                        #I want:
-                        #new_out_dict[key]['indices'][i,layer,neuron] =
-                        # out_dict[key]['indices'][vi['indices'][i,layer,neuron],layer,neuron]
-                        #hence the above line of code
+                    #running topk computation
+                    #print(out_dict[key]['values'].shape) #should be: k layer neuron
+                    vi = _get_reduce(
+                        out_dict[key]['values'],
+                        reduction=key[-1],
+                        arg=True,
+                        k=min(i+1, args.examples_per_neuron),
+                        )#k+1 layer neuron -> k layer neuron
+                    if args.test:
+                        print(out_dict[key]['indices'].shape)
+                        print(vi['indices'].shape)
+                    out_dict[key]['values'] = vi['values']
+                    out_dict[key]['indices'] = torch.gather(
+                        out_dict[key]['indices'], dim=0, index=vi['indices']
+                    )
+                    #original dataset indices!
+                    #I want:
+                    #new_out_dict[key]['indices'][i,layer,neuron] =
+                    # out_dict[key]['indices'][vi['indices'][i,layer,neuron],layer,neuron]
+                    #hence the above line of code
 
+    for key in out_dict:
+        if key[-1] in ('sum', 'freq'):
+            out_dict[key] = out_dict[key].to(torch.float)
     for key in out_dict:
         if key[-1]=='sum':
             #for the moment frequencies are still absolute numbers so we can do this
-            out_dict[key] = out_dict[key].to(torch.float) / out_dict[(key[0],'freq')].to(torch.float)
+            out_dict[key] /= out_dict[(key[0],'freq')]
             #now the 'sum' entry is actually a mean!
     for key in out_dict:
         if key[-1]=='freq':
-            out_dict[key] = out_dict[key].to(torch.float) / float(dataset.n_tokens)
+            out_dict[key] /= float(dataset.n_tokens)
 
     return out_dict
 
