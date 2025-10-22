@@ -6,9 +6,11 @@ import einops
 
 #from transformers.activations import ACT2FN
 
-from utils import ModelWrapper
+from utils import ModelWrapper, VALUES_TO_SUMMARISE
 
-def recompute_acts(model:ModelWrapper, layer:int, neuron:int, indices:torch.Tensor, save_path:str):
+def recompute_acts(
+    model:ModelWrapper, layer:int, neuron:int, indices:torch.Tensor, save_path:str, key:tuple[str,str,str]
+    ) -> dict[str,torch.Tensor]:
     """Recompute activations for the given neuron and dataset indices, using cached residual stream activations.
 
     Args:
@@ -20,32 +22,39 @@ def recompute_acts(model:ModelWrapper, layer:int, neuron:int, indices:torch.Tens
             Specifically, this should be the parent directory of "activation_cache".
 
     Returns:
-        dict: dictionary with keys 'gate','in','acts', containing tensors of shape (sample, pos)
+        torch.Tensor[float]:
+            the first dimension corresponds to the different VALUES_TO_SUMMARISE,
+            then we have batch and position
     """
     ln_cache=[]
+    positions=[]
     for i in indices:
         i=int(i)#just in case
         with open(f"{save_path}/activation_cache/batch{i}.pickle", 'rb') as f:
-            subcache = pickle.load(f)['ln_cache'] #batch pos layer d_model
+            saved_stuff = pickle.load(f)
+            #ln cache
+            subcache = saved_stuff['ln_cache'] #batch pos layer d_model
             ln_cache.append(subcache[:,:,layer,:])
-            #print(ln_cache[-1].shape)
+            #positions of max/min activations within sequence
+            single_pos = saved_stuff[key]['indices'][:,layer,neuron]
+            positions.append(single_pos)
     ln_cache = torch.cat(ln_cache).cuda()
-    #print(ln_cache.shape) #should be sample pos d_model
+    positions = torch.cat(positions).cuda()
 
     intermediate = {}
-
-    intermediate['gate'] = model.actfn(
-        einops.einsum(ln_cache,
-                      model.blocks[layer].mlp.W_gate[:,neuron],
-                      'sample pos d_model, d_model -> sample pos'
-                      )
-        )
-    intermediate['in'] = einops.einsum(
+    intermediate['hook_pre'] = einops.einsum(
+        ln_cache,
+        model.blocks[layer].mlp.W_gate[:,neuron],
+        'sample pos d_model, d_model -> sample pos'
+    )
+    intermediate['swish'] = model.actfn(intermediate['hook_pre'])
+    intermediate['hook_pre_linear'] = einops.einsum(
         ln_cache,
         model.blocks[layer].mlp.W_in[:,neuron],
         'sample pos d_model, d_model -> sample pos'
-        )
-    intermediate['acts'] = intermediate['gate']*intermediate['in']
-    #TODO get position of max/min activation in sequence
+    )
+    intermediate['hook_post'] = intermediate['swish']*intermediate['hook_pre_linear']
 
-    return intermediate
+    recomputed_acts = torch.stack([intermediate[hook] for hook in VALUES_TO_SUMMARISE], dim=-1)
+
+    return {'all_acts':recomputed_acts, 'position_indices':positions}

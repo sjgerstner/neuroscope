@@ -8,9 +8,10 @@
 # from datasets import load_from_disk
 # from transformers import AutoTokenizer
 
-from circuitsvis.tokens import colored_tokens
+from circuitsvis.tokens import colored_tokens_multi
 
-from b_activations import CASES, VALUES_TO_SUMMARISE
+from utils import CASES
+from b_activations import VALUES_TO_SUMMARISE
 
 def _vis_example(i, indices, acts, dataset, tokenizer, stop_tokens=None):
     index = int(indices[i])
@@ -21,9 +22,10 @@ def _vis_example(i, indices, acts, dataset, tokenizer, stop_tokens=None):
     if stop_tokens is not None:
         tokens = tokens[:stop_tokens[i]]
     return f'<h4>Example {i}</h4>\n'+str(
-        colored_tokens(#TODO colored_tokens_multi with the different activation types
-            tokens,
-            acts[i][:len(tokens)]
+        colored_tokens_multi(
+            tokens=tokens,
+            values=acts[i,:len(tokens),:],#batch, pos, act_type
+            labels=VALUES_TO_SUMMARISE,
         )
     )+"\n</div>"
 
@@ -39,7 +41,9 @@ def neuron_vis_full(neuron_data, dataset, tokenizer):
     htmls = []
     # # We first add the style to make each token element have a nice border
     # htmls = [style_string]
-    # We then add a kind of
+    #TODO weight-based analysis (circuitsvis topk tokens + RW functionality)
+    #TODO improve layout
+    # We add a kind of
     # "table": cases are main columns,
     # and within that we have paragraphs with frequency,
     # and max/min/mean (all within one paragraph)
@@ -64,23 +68,22 @@ def neuron_vis_full(neuron_data, dataset, tokenizer):
     for case in CASES:
         htmls.append(f'<h2>Prototypical activations for case {case}</h2>')
         for act_type in VALUES_TO_SUMMARISE:
-            htmls.append(f'<h3>Prototypical {act_type} activations')
             for reduction in ['max','min']:
-                htmls.append(f'<h4>{reduction}</h4>')
-                for i in range(neuron_data[(case, act_type, reduction)]['indices'].shape[0]):
-                    # print(max_indices[i])
-                    # print(dataset[int(max_indices[i])])
-                    htmls.append(
-                        _vis_example(
-                            i=i,
-                            indices=neuron_data[(case, act_type, reduction)]['indices'],
-                            acts=neuron_data['acts'][(case, act_type, reduction)],
-                            #stop_tokens=neuron_data[(case, act_type, reduction)]['indices'],#TODO
-                            dataset=dataset,
-                            tokenizer=tokenizer
-                            )
+                if neuron_data[(case,act_type,reduction)]['values'][0]!=0:
+                    htmls.append(f'<h3>{reduction} {act_type} activations')
+                    for i in range(neuron_data[(case, act_type, reduction)]['indices'].shape[0]):
+                        # print(max_indices[i])
+                        # print(dataset[int(max_indices[i])])
+                        htmls.append(
+                            _vis_example(
+                                i=i,
+                                indices=neuron_data[(case, act_type, reduction)]['indices'],
+                                acts=neuron_data[(case, act_type, reduction)]['all_acts'],#batch, pos, act_type
+                                stop_tokens=neuron_data[(case, act_type, reduction)]['position_indices']+2,
+                                dataset=dataset,
+                                tokenizer=tokenizer
+                                )
                         )
-                htmls.append('<hr>')
             htmls.append('<hr>')
         htmls.append('<hr>')
     return "\n".join(htmls)
