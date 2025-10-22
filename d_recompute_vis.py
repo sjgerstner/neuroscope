@@ -10,10 +10,10 @@ import torch
 import einops
 from datasets import load_from_disk
 
-from utils import _move_to
 from b2_recompute import recompute_acts
 from c_neuron_vis import neuron_vis_full
 import utils
+from utils import _move_to
 
 parser = ArgumentParser()
 parser.add_argument('--dataset', default='dolma-small')
@@ -56,15 +56,15 @@ else:
     MY_FILE = f'{SAVE_PATH}/summary.pickle'
 with open(MY_FILE, 'rb') as f:
     summary_dict = _move_to(pickle.load(f), 'cuda')
-if args.test:
-    #print(f"summary_dict: {summary_dict.keys()}")
-    for key,value in summary_dict.items():
-        if isinstance(value, torch.Tensor):
-            print(f'{key}: {value[...,0,0]}')
-        elif isinstance(value, dict):
-            print(f'{key}:')
-            for key1,value1 in value.items():
-                print(f'> {key1}: {value1[...,0,0]}')
+# if args.test:
+#     #print(f"summary_dict: {summary_dict.keys()}")
+#     for key,value in summary_dict.items():
+#         if isinstance(value, torch.Tensor):
+#             print(f'{key}: {value[...,0,0]}')
+#         elif isinstance(value, dict):
+#             print(f'{key}:')
+#             for key1,value1 in value.items():
+#                 print(f'> {key1}: {value1[...,0,0]}')
 
 dataset = load_from_disk(f'{args.datasets_dir}/{args.dataset}')
 
@@ -98,9 +98,9 @@ elif args.test:
     layer_neuron_list = [[0]]
 
 maxmin_keys = [key for key in summary_dict.keys() if key[-1] in ['max','min']]
-maxmin_indices = torch.cat(
-    [summary_dict[key]['indices'] for key in maxmin_keys]
-)
+# maxmin_indices = torch.cat(
+#     [summary_dict[key]['indices'] for key in maxmin_keys]
+# )
 
 TOPK, N_LAYERS, N_NEURONS = summary_dict[('gate+_in+', 'hook_post', 'max')]['indices'].shape
 if args.neurons=='all':
@@ -125,38 +125,35 @@ for layer,neuron_list in enumerate(layer_neuron_list):
         #recomputing neuron activations on max and min examples
         activations_file = f'{neuron_dir}/activations{"_refactored" if args.refactor_glu else ""}.pt'
         activations_file_raw = f'{neuron_dir}/activations.pt'
-        if os.path.exists(activations_file):
-        #TODO we may need to comment this out because the internal format changed
-            neuron_data = torch.load(activations_file)
-        elif args.refactor_glu and os.path.exists(activations_file_raw):
-            neuron_data = torch.load(activations_file_raw)
-            if sign_to_adapt[layer,neuron]==-1:
-                neuron_data = utils.adapt_activations(neuron_data)
-            torch.save(neuron_data, activations_file)
+        # if os.path.exists(activations_file):
+        # #TODO we may need to comment this out because the internal format changed
+        #     neuron_data = torch.load(activations_file)
+        # elif args.refactor_glu and os.path.exists(activations_file_raw):
+        #     neuron_data = torch.load(activations_file_raw)
+        #     if sign_to_adapt[layer,neuron]==-1:
+        #         neuron_data = utils.adapt_activations(neuron_data)
+        #     torch.save(neuron_data, activations_file)
+        if False:
+            pass
         else:
-            dict_all = recompute_acts(
-                model,
-                layer, neuron,
-                maxmin_indices[:,layer,neuron],
-                # out_dict=dict_all,#dict_all is just updated
-                save_path=SAVE_PATH,
-            )
-            neuron_data = {
-                recomputed_type_key : {
-                    case_key : stacked_tensor[i*TOPK:(i+1)*TOPK]
-                    for i,case_key in enumerate(maxmin_keys)
-                }
-                for recomputed_type_key,stacked_tensor in dict_all.items()
-            }
-            #outer key is the recomputed activation type, inner key is (case, summarised_type, ['max','min'])
-            #the other way round doesn't work because of what comes next!
+            neuron_data = {case_key:recompute_acts(
+                    model,
+                    layer, neuron,
+                    indices=summary_dict[case_key]['indices'][...,layer,neuron],
+                    save_path=SAVE_PATH,
+                    key=case_key
+                )
+                for case_key in maxmin_keys}
             torch.save(neuron_data, activations_file)
         #visualisation
         for key,value in summary_dict.items():
             if isinstance(value, torch.Tensor):
+                assert key not in maxmin_keys
                 neuron_data[key]=value[...,layer,neuron]
             elif isinstance(value, dict):
-                neuron_data[key]={key1:value1[...,layer,neuron] for key1,value1 in value.items()}
+                assert key in maxmin_keys
+                for key1,value1 in value.items():
+                    neuron_data[key][key1]=value1[...,layer,neuron]
         # neuron_data = {
         #     'max_indices':maxmin_indices[:TOPK, layer, neuron],
         #     'min_indices':maxmin_indices[TOPK:, layer, neuron],

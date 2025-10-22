@@ -18,14 +18,14 @@ import einops
 
 import datasets
 
-from utils import ModelWrapper, _move_to, add_properties
+from utils import (
+    ModelWrapper,
+    _move_to,
+    add_properties,
+    VALUES_TO_SUMMARISE,
+)
 
 HOOKS_TO_CACHE = ['ln2.hook_normalized', 'mlp.hook_post', 'mlp.hook_pre', 'mlp.hook_pre_linear']
-VALUES_TO_SUMMARISE = ['hook_post', 'hook_pre_linear', 'hook_pre', 'swish']
-CASES = ['gate+_in+',
-        'gate+_in-',
-        'gate-_in+',
-        'gate-_in-']
 REDUCTIONS = ['max', 'min', 'sum']
 
 def _get_reduce_and_arg(cache_item, reduction, k=1, to_device='cpu'):
