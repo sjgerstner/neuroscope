@@ -8,10 +8,9 @@
 # from datasets import load_from_disk
 # from transformers import AutoTokenizer
 
-import torch
 from circuitsvis.tokens import colored_tokens_multi
 
-from utils import CASES, detect_cases
+from utils import CASES, get_act_type_keys
 from b_activations import VALUES_TO_SUMMARISE
 
 def _vis_example(i, indices, acts, dataset, tokenizer, key, stop_tokens=None):
@@ -29,7 +28,7 @@ def _vis_example(i, indices, acts, dataset, tokenizer, key, stop_tokens=None):
         colored_tokens_multi(
             tokens=tokens,
             values=relevant_acts,
-            labels=[f'{key[0]}_{key[1]}']+VALUES_TO_SUMMARISE,
+            labels=get_act_type_keys(key),
         )
     )+"\n</div>"
 

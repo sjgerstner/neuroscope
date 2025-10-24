@@ -6,7 +6,7 @@ import einops
 
 #from transformers.activations import ACT2FN
 
-from utils import ModelWrapper, VALUES_TO_SUMMARISE, detect_cases
+from utils import ModelWrapper, VALUES_TO_SUMMARISE, detect_cases, get_act_type_keys
 
 def recompute_acts(
     model:ModelWrapper, layer:int, neuron:int, indices:torch.Tensor, save_path:str, key:tuple[str,str,str]
@@ -55,14 +55,15 @@ def recompute_acts(
     )
     intermediate['hook_post'] = intermediate['swish']*intermediate['hook_pre_linear']
 
+    act_type_keys = get_act_type_keys(key)
+
     bins = detect_cases(
         gate_values=intermediate['hook_pre'],
         in_values=intermediate['hook_pre_linear'],
         keys=[key[0]]
     )
-    extra_key = f'{key[0]}_{key[1]}'
-    intermediate[extra_key] = bins[key[0]] * intermediate[key[1]]
+    intermediate[act_type_keys[0]] = bins[key[0]] * intermediate[key[1]]
 
-    recomputed_acts = torch.stack([intermediate[hook] for hook in [extra_key]+VALUES_TO_SUMMARISE], dim=-1)
+    recomputed_acts = torch.stack([intermediate[hook] for hook in act_type_keys], dim=-1)
 
     return {'all_acts':recomputed_acts, 'position_indices':positions}

@@ -13,6 +13,11 @@ CASES = ['gate+_in+',
         'gate-_in+',
         'gate-_in-']
 
+def get_act_type_keys(key):
+    extra_key = f'{key[0]}_{key[1]}'
+    keys = [extra_key]+VALUES_TO_SUMMARISE
+    return keys
+
 def detect_cases(gate_values, in_values, keys=None):
     """Given two tensors (or arrays),
     return a dictionary with four 0-1 tensors (arrays)
