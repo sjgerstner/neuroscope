@@ -8,24 +8,35 @@
 # from datasets import load_from_disk
 # from transformers import AutoTokenizer
 
+import torch
 from circuitsvis.tokens import colored_tokens_multi
 
-from utils import CASES
+from utils import CASES, detect_cases
 from b_activations import VALUES_TO_SUMMARISE
 
-def _vis_example(i, indices, acts, dataset, tokenizer, stop_tokens=None):
+def _vis_example(i, indices, acts, dataset, tokenizer, key, stop_tokens=None):
     index = int(indices[i])
     #print(dataset[index]['input_ids'])#tensor of ints
     tokens = tokenizer.batch_decode(#or convert_ids_to_tokens
         dataset[index]['input_ids']
     )
     if stop_tokens is not None:
+        #TODO truncate beginning
+        #TODO option to show full example
         tokens = tokens[:stop_tokens[i]]
-    return f'<h4>Example {i}</h4>\n'+str(
+    relevant_acts = acts[i,:len(tokens),:]#batch, pos, act_type
+    bins = detect_cases(
+        gate_values=relevant_acts[...,2],
+        in_values=relevant_acts[...,1],
+        keys=[key[0]]
+    )
+    cleaned_values = bins[key[0]] * relevant_acts[:,:,VALUES_TO_SUMMARISE.index(key[1])]
+    all_values = torch.stack([cleaned_values, relevant_acts], dim=-1)
+    return f'<h4>Example {i}</h4>\n'+str(#TODO source of dataset example
         colored_tokens_multi(
             tokens=tokens,
-            values=acts[i,:len(tokens),:],#batch, pos, act_type
-            labels=VALUES_TO_SUMMARISE,
+            values=all_values,
+            labels=[f'{key[0]}_{key[1]}']+VALUES_TO_SUMMARISE,
         )
     )+"\n</div>"
 
@@ -42,7 +53,7 @@ def neuron_vis_full(neuron_data, dataset, tokenizer):
     # # We first add the style to make each token element have a nice border
     # htmls = [style_string]
     #TODO weight-based analysis (circuitsvis topk tokens + RW functionality)
-    #TODO improve layout
+    #TODO improve table layout
     # We add a kind of
     # "table": cases are main columns,
     # and within that we have paragraphs with frequency,
@@ -60,7 +71,7 @@ def neuron_vis_full(neuron_data, dataset, tokenizer):
                 Min: <b>{neuron_data[(case,act_type,'min')]['values'][0]:.4f}</b>;
                 Avg: <b>{neuron_data[(case,act_type,'sum')]:.4f}</b>.
                 </p>
-                """
+                """#TODO fewer digits
             )
         htmls.append('</td>')
     htmls.append('</tr></table>')
@@ -69,19 +80,21 @@ def neuron_vis_full(neuron_data, dataset, tokenizer):
         htmls.append(f'<h2>Prototypical activations for case {case}</h2>')
         for act_type in VALUES_TO_SUMMARISE:
             for reduction in ['max','min']:
-                if neuron_data[(case,act_type,reduction)]['values'][0]!=0:
+                key = (case, act_type, reduction)
+                if neuron_data[key]['values'][0]!=0:
                     htmls.append(f'<h3>{reduction} {act_type} activations')
-                    for i in range(neuron_data[(case, act_type, reduction)]['indices'].shape[0]):
+                    for i in range(neuron_data[key]['indices'].shape[0]):
                         # print(max_indices[i])
                         # print(dataset[int(max_indices[i])])
                         htmls.append(
                             _vis_example(
                                 i=i,
-                                indices=neuron_data[(case, act_type, reduction)]['indices'],
-                                acts=neuron_data[(case, act_type, reduction)]['all_acts'],#batch, pos, act_type
-                                stop_tokens=neuron_data[(case, act_type, reduction)]['position_indices']+2,
+                                indices=neuron_data[key]['indices'],
+                                acts=neuron_data[key]['all_acts'],#batch, pos, act_type
+                                stop_tokens=neuron_data[key]['position_indices']+3,
                                 dataset=dataset,
-                                tokenizer=tokenizer
+                                tokenizer=tokenizer,
+                                key=key,
                                 )
                         )
             htmls.append('<hr>')

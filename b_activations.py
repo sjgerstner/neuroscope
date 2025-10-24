@@ -4,9 +4,10 @@ The code was written with batch size 1 in mind.
 Other batch sizes will almost certainly lead to bugs.
 """
 
-#TODO (also other files) pathlib
-#TODO replace pickle with pt
 #TODO enable other batch sizes, don't forget problems with padding tokens
+#TODO replace pickle with pt
+#TODO (also other files) pathlib
+
 
 from argparse import ArgumentParser
 import os
@@ -23,6 +24,7 @@ from utils import (
     _move_to,
     add_properties,
     VALUES_TO_SUMMARISE,
+    detect_cases
 )
 
 HOOKS_TO_CACHE = ['ln2.hook_normalized', 'mlp.hook_post', 'mlp.hook_pre', 'mlp.hook_pre_linear']
@@ -100,13 +102,7 @@ def _get_all_neuron_acts(model, ids_and_mask, names_filter, max_seq_len=1024):
     #summary keys (mean and frequencies)
     #layer neuron
     #intermediate['mean'] = _get_reduce(cache['mlp.hook_post'], 'sum')#not needed anymore
-    gate_positive = cache['mlp.hook_pre']>0
-    in_positive = cache['mlp.hook_pre_linear']>0
-    bins={}
-    bins['gate+_in+'] = gate_positive*in_positive
-    bins['gate+_in-'] = gate_positive*~in_positive
-    bins['gate-_in+'] = (~gate_positive)*in_positive
-    bins['gate-_in-'] = (~gate_positive)*~in_positive
+    bins=detect_cases(gate_values=cache['mlp.hook_pre'], in_values=cache['mlp.hook_pre_linear'])
     for case,zero_one in bins.items():
         intermediate[(case, 'freq')] = _get_reduce(zero_one, 'sum')
         for key_to_summarise in VALUES_TO_SUMMARISE:
