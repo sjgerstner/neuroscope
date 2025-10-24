@@ -125,16 +125,16 @@ for layer,neuron_list in enumerate(layer_neuron_list):
         #recomputing neuron activations on max and min examples
         activations_file = f'{neuron_dir}/activations{"_refactored" if args.refactor_glu else ""}.pt'
         activations_file_raw = f'{neuron_dir}/activations.pt'
-        if os.path.exists(activations_file):
-        #TODO we may need to comment this out because the internal format changed
-            neuron_data = torch.load(activations_file)
-        elif args.refactor_glu and os.path.exists(activations_file_raw):
-            neuron_data = torch.load(activations_file_raw)
-            if sign_to_adapt[layer,neuron]==-1:
-                neuron_data = utils.adapt_activations(neuron_data)
-            torch.save(neuron_data, activations_file)
-        # if False:
-        #     pass
+        # if os.path.exists(activations_file):
+        # #TODO we may need to comment this out because the internal format changed
+        #     neuron_data = torch.load(activations_file)
+        # elif args.refactor_glu and os.path.exists(activations_file_raw):
+        #     neuron_data = torch.load(activations_file_raw)
+        #     if sign_to_adapt[layer,neuron]==-1:
+        #         neuron_data = utils.adapt_activations(neuron_data)
+        #     torch.save(neuron_data, activations_file)
+        if False:
+            pass
         else:
             neuron_data = {case_key:recompute_acts(
                     model,
