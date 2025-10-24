@@ -25,17 +25,10 @@ def _vis_example(i, indices, acts, dataset, tokenizer, key, stop_tokens=None):
         #TODO option to show full example
         tokens = tokens[:stop_tokens[i]]
     relevant_acts = acts[i,:len(tokens),:]#batch, pos, act_type
-    bins = detect_cases(
-        gate_values=relevant_acts[...,2],
-        in_values=relevant_acts[...,1],
-        keys=[key[0]]
-    )
-    cleaned_values = bins[key[0]] * relevant_acts[:,:,VALUES_TO_SUMMARISE.index(key[1])]
-    all_values = torch.stack([cleaned_values, relevant_acts], dim=-1)
     return f'<h4>Example {i}</h4>\n'+str(#TODO source of dataset example
         colored_tokens_multi(
             tokens=tokens,
-            values=all_values,
+            values=relevant_acts,
             labels=[f'{key[0]}_{key[1]}']+VALUES_TO_SUMMARISE,
         )
     )+"\n</div>"
