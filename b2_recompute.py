@@ -63,6 +63,9 @@ def recompute_acts(
         keys=[key[0]]
     )
     intermediate[act_type_keys[0]] = bins[key[0]] * intermediate[key[1]]
+    #hack: convert -0.0 to a small negative value
+    if key[-1]=='min':
+        intermediate[act_type_keys[0]][intermediate[act_type_keys[0]]==-0.0]=-1e-7
 
     recomputed_acts = torch.stack([intermediate[hook] for hook in act_type_keys], dim=-1)
 
