@@ -46,28 +46,31 @@ def neuron_vis_full(neuron_data, dataset, tokenizer):
     # # We first add the style to make each token element have a nice border
     # htmls = [style_string]
     #TODO weight-based analysis (circuitsvis topk tokens + RW functionality)
-    #TODO improve table layout
     # We add a kind of
     # "table": cases are main columns,
     # and within that we have paragraphs with frequency,
     # and max/min/mean (all within one paragraph)
     # of gate/swish/in/post (separate paragraphs)
     htmls.append('<table><tr>')
-    for case in CASES:
-        htmls.append(f"<td><h4>{case}</h4>")
-        htmls.append(f"<p>Frequency: <b>{neuron_data[(case, 'freq')]:.2%}</b>.</p>")
-        for act_type in VALUES_TO_SUMMARISE:
-            htmls.append(
-                f"""<p>
-                <b>{act_type}</b>:
-                Max: <b>{neuron_data[(case,act_type,'max')]['values'][0]:.4f}</b>;
-                Min: <b>{neuron_data[(case,act_type,'min')]['values'][0]:.4f}</b>;
-                Avg: <b>{neuron_data[(case,act_type,'sum')]:.4f}</b>.
-                </p>
-                """#TODO fewer digits
-            )
-        htmls.append('</td>')
-    htmls.append('</tr></table>')
+    htmls.extend([f"<td><h4>{case}</h4></td>" for case in CASES])
+    htmls.append('</tr><tr>')
+    htmls.extend([f"<td>Frequency: <b>{neuron_data[(case, 'freq')]:.2%}</b>.</td>" for case in CASES])
+    htmls.append('</tr>')
+    for act_type in VALUES_TO_SUMMARISE:
+        htmls.append('<tr>')
+        htmls.extend(
+            [f"""<td>
+            <b>{act_type}</b>:<br>
+            Max: <b>{neuron_data[(case,act_type,'max')]['values'][0]:.4f}</b>;<br>
+            Min: <b>{neuron_data[(case,act_type,'min')]['values'][0]:.4f}</b>;<br>
+            Avg: <b>{neuron_data[(case,act_type,'sum')]:.4f}</b>.
+            </td>
+            """#TODO fewer digits
+            for case in CASES
+            ]
+        )
+        htmls.append('</tr>')
+    htmls.append('</table>')
     #TODO possibility to toggle the lists
     for case in CASES:
         htmls.append(f'<h2>Prototypical activations for case {case}</h2>')
