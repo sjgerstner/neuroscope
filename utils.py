@@ -14,8 +14,12 @@ CASES = ['gate+_in+',
         'gate-_in-']
 
 def get_act_type_keys(key):
-    extra_key = f'{key[0]}_{key[1]}'
-    keys = [extra_key]+VALUES_TO_SUMMARISE
+    if key[0].startswith('gate+') and key[1]=='swish':
+        return []
+    extra_keys = [f'{key[0]}_{key[1]}']
+    if key[0].startswith('gate+') and key[1]=='hook_pre':
+        extra_keys.append(f'{key[0]}_swish')
+    keys = extra_keys+VALUES_TO_SUMMARISE
     return keys
 
 def detect_cases(gate_values, in_values, keys=None):

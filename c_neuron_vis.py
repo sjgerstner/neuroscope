@@ -74,7 +74,7 @@ def neuron_vis_full(neuron_data, dataset, tokenizer):
         for act_type in VALUES_TO_SUMMARISE:
             for reduction in ['max','min']:
                 key = (case, act_type, reduction)
-                if neuron_data[key]['values'][0]!=0:
+                if 'all_acts' in neuron_data[key] and neuron_data[key]['values'][0]!=0:
                     htmls.append(f'<h3>{reduction} {act_type} activations')
                     for i in range(neuron_data[key]['indices'].shape[0]):
                         # print(max_indices[i])
