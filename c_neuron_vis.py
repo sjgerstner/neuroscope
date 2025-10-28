@@ -8,6 +8,7 @@
 # from datasets import load_from_disk
 # from transformers import AutoTokenizer
 
+from torch import allclose, zeros_like
 from circuitsvis.tokens import colored_tokens_multi
 
 from utils import CASES, get_act_type_keys
@@ -78,11 +79,17 @@ def neuron_vis_full(neuron_data, dataset, tokenizer):
                     for i in range(neuron_data[key]['indices'].shape[0]):
                         # print(max_indices[i])
                         # print(dataset[int(max_indices[i])])
+                        #ignore samples in which no token satisfies the condition:
+                        first_acts=neuron_data[key]['all_acts'][i,:,0]#sample pos act_type
+                        # if case=='gate+_in-' and act_type=='hook_post':
+                        #     print(first_acts)
+                        if allclose(first_acts, zeros_like(first_acts), atol=1e-7):
+                            break
                         htmls.append(
                             _vis_example(
                                 i=i,
                                 indices=neuron_data[key]['indices'],
-                                acts=neuron_data[key]['all_acts'],#batch, pos, act_type
+                                acts=neuron_data[key]['all_acts'],
                                 stop_tokens=neuron_data[key]['position_indices']+3,
                                 dataset=dataset,
                                 tokenizer=tokenizer,
