@@ -4,13 +4,11 @@ import pickle
 import torch
 import einops
 
-#from transformers.activations import ACT2FN
-
-from utils import ModelWrapper, VALUES_TO_SUMMARISE, detect_cases, get_act_type_keys
+from utils import ModelWrapper, detect_cases, get_act_type_keys
 
 def recompute_acts(
     model:ModelWrapper, layer:int, neuron:int, indices:torch.Tensor, save_path:str, key:tuple[str,str,str]
-    ) -> dict[str,torch.Tensor]:
+    ) -> dict[str,torch.Tensor|list[str]]:
     """Recompute activations for the given neuron and dataset indices, using cached residual stream activations.
 
     Args:
@@ -26,6 +24,9 @@ def recompute_acts(
             the first dimension corresponds to the different VALUES_TO_SUMMARISE,
             then we have batch and position
     """
+    act_type_keys = get_act_type_keys(key)
+    if not act_type_keys:
+        return {}
     ln_cache=[]
     positions=[]
     for i in indices:
@@ -55,18 +56,18 @@ def recompute_acts(
     )
     intermediate['hook_post'] = intermediate['swish']*intermediate['hook_pre_linear']
 
-    act_type_keys = get_act_type_keys(key)
-
     bins = detect_cases(
         gate_values=intermediate['hook_pre'],
         in_values=intermediate['hook_pre_linear'],
         keys=[key[0]]
     )
-    intermediate[act_type_keys[0]] = bins[key[0]] * intermediate[key[1]]
-    #hack: convert -0.0 to a small negative value
-    if key[-1]=='min':
-        intermediate[act_type_keys[0]][intermediate[act_type_keys[0]]==-0.0]=-1e-7
+    for atk in act_type_keys:
+        if atk not in intermediate:
+            intermediate[atk] = bins[key[0]] * intermediate['_'.join(atk.split('_')[2:])]
+            #hack: convert -0.0 to a small negative value
+            if key[-1]=='min':
+                intermediate[atk][intermediate[atk]==-0.0]=-1e-7
 
     recomputed_acts = torch.stack([intermediate[hook] for hook in act_type_keys], dim=-1)
 
-    return {'all_acts':recomputed_acts, 'position_indices':positions}
+    return {'all_acts':recomputed_acts, 'position_indices':positions, 'act_type_keys':act_type_keys}
