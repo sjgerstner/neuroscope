@@ -1,10 +1,11 @@
 """single function recompute_acts"""
+from os.path import exists
 import pickle
 
 import torch
 import einops
 
-from utils import ModelWrapper, detect_cases, get_act_type_keys
+from utils import ModelWrapper, detect_cases, get_act_type_keys, adapt_activations
 
 def recompute_acts(
     model:ModelWrapper, layer:int, neuron:int, indices:torch.Tensor, save_path:str, key:tuple[str,str,str]
@@ -71,3 +72,35 @@ def recompute_acts(
     recomputed_acts = torch.stack([intermediate[hook] for hook in act_type_keys], dim=-1)
 
     return {'all_acts':recomputed_acts, 'position_indices':positions, 'act_type_keys':act_type_keys}
+
+def recompute_acts_if_necessary(args, summary_dict, maxmin_keys, neuron_dir, single_sign_to_adapt=1, **kwargs):
+    activations_file = f'{neuron_dir}/activations{"_refactored" if args.refactor_glu else ""}.pt'
+    activations_file_raw = f'{neuron_dir}/activations.pt'
+    if exists(activations_file):
+    #TODO we may need to comment this out because the internal format changed
+        activation_data = torch.load(activations_file)
+    elif args.refactor_glu and exists(activations_file_raw):
+        activation_data = torch.load(activations_file_raw)
+        if single_sign_to_adapt==-1:
+            activation_data = adapt_activations(activation_data)
+        torch.save(activation_data, activations_file)
+    # if False:
+    #     pass
+    else:
+        activation_data = {case_key:recompute_acts(
+                **kwargs,
+                key=case_key,
+                indices=summary_dict[case_key]['indices'][...,kwargs['layer'],kwargs['neuron']],
+            )
+            for case_key in maxmin_keys}
+        torch.save(activation_data, activations_file)
+    return activation_data
+
+def expand_with_summary(activation_data, summary_dict, layer, neuron):
+    for key,value in summary_dict.items():
+        if isinstance(value, torch.Tensor):
+            activation_data[key]=value[...,layer,neuron]
+        elif isinstance(value, dict):
+            for key1,value1 in value.items():
+                activation_data[key][key1]=value1[...,layer,neuron]
+    return activation_data

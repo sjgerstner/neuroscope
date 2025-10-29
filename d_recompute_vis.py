@@ -10,7 +10,7 @@ import torch
 import einops
 from datasets import load_from_disk
 
-from b2_recompute import recompute_acts
+import recompute
 from c_neuron_vis import neuron_vis_full
 import utils
 from utils import _move_to
@@ -123,36 +123,20 @@ for layer,neuron_list in enumerate(layer_neuron_list):
         if not os.path.exists(neuron_dir):
             os.mkdir(neuron_dir)
         #recomputing neuron activations on max and min examples
-        activations_file = f'{neuron_dir}/activations{"_refactored" if args.refactor_glu else ""}.pt'
-        activations_file_raw = f'{neuron_dir}/activations.pt'
-        if os.path.exists(activations_file):
-        #TODO we may need to comment this out because the internal format changed
-            neuron_data = torch.load(activations_file)
-        elif args.refactor_glu and os.path.exists(activations_file_raw):
-            neuron_data = torch.load(activations_file_raw)
-            if sign_to_adapt[layer,neuron]==-1:
-                neuron_data = utils.adapt_activations(neuron_data)
-            torch.save(neuron_data, activations_file)
-        # if False:
-        #     pass
-        else:
-            activation_data = {case_key:recompute_acts(
-                    model,
-                    layer, neuron,
-                    indices=summary_dict[case_key]['indices'][...,layer,neuron],
-                    save_path=SAVE_PATH,
-                    key=case_key
-                )
-                for case_key in maxmin_keys}
-            torch.save(activation_data, activations_file)
-        for key,value in summary_dict.items():
-            if isinstance(value, torch.Tensor):
-                assert key not in maxmin_keys
-                activation_data[key]=value[...,layer,neuron]
-            elif isinstance(value, dict):
-                assert key in maxmin_keys
-                for key1,value1 in value.items():
-                    activation_data[key][key1]=value1[...,layer,neuron]
+        activation_data = recompute.recompute_acts_if_necessary(
+            args=args,
+            summary_dict=summary_dict,
+            maxmin_keys=maxmin_keys,
+            neuron_dir=neuron_dir,
+            single_sign_to_adapt=int(sign_to_adapt[layer,neuron]),
+            model=model, layer=layer, neuron=neuron,
+            save_path=SAVE_PATH,
+        )
+        activation_data = recompute.expand_with_summary(
+            activation_data=activation_data,
+            summary_dict=summary_dict,
+            layer=layer, neuron=neuron,
+        )
         #visualisation
         # We add some text to tell us what layer and neuron we're looking at
         heading = f"<h2>Layer: <b>{layer}</b>. Neuron Index: <b>{neuron}</b></h2>\n"
