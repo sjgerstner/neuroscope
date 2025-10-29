@@ -125,18 +125,18 @@ for layer,neuron_list in enumerate(layer_neuron_list):
         #recomputing neuron activations on max and min examples
         activations_file = f'{neuron_dir}/activations{"_refactored" if args.refactor_glu else ""}.pt'
         activations_file_raw = f'{neuron_dir}/activations.pt'
-        # if os.path.exists(activations_file):
-        # #TODO we may need to comment this out because the internal format changed
-        #     neuron_data = torch.load(activations_file)
-        # elif args.refactor_glu and os.path.exists(activations_file_raw):
-        #     neuron_data = torch.load(activations_file_raw)
-        #     if sign_to_adapt[layer,neuron]==-1:
-        #         neuron_data = utils.adapt_activations(neuron_data)
-        #     torch.save(neuron_data, activations_file)
-        if False:
-            pass
+        if os.path.exists(activations_file):
+        #TODO we may need to comment this out because the internal format changed
+            neuron_data = torch.load(activations_file)
+        elif args.refactor_glu and os.path.exists(activations_file_raw):
+            neuron_data = torch.load(activations_file_raw)
+            if sign_to_adapt[layer,neuron]==-1:
+                neuron_data = utils.adapt_activations(neuron_data)
+            torch.save(neuron_data, activations_file)
+        # if False:
+        #     pass
         else:
-            neuron_data = {case_key:recompute_acts(
+            activation_data = {case_key:recompute_acts(
                     model,
                     layer, neuron,
                     indices=summary_dict[case_key]['indices'][...,layer,neuron],
@@ -144,32 +144,20 @@ for layer,neuron_list in enumerate(layer_neuron_list):
                     key=case_key
                 )
                 for case_key in maxmin_keys}
-            torch.save(neuron_data, activations_file)
-        #visualisation
+            torch.save(activation_data, activations_file)
         for key,value in summary_dict.items():
             if isinstance(value, torch.Tensor):
                 assert key not in maxmin_keys
-                neuron_data[key]=value[...,layer,neuron]
+                activation_data[key]=value[...,layer,neuron]
             elif isinstance(value, dict):
                 assert key in maxmin_keys
                 for key1,value1 in value.items():
-                    neuron_data[key][key1]=value1[...,layer,neuron]
-        # neuron_data = {
-        #     'max_indices':maxmin_indices[:TOPK, layer, neuron],
-        #     'min_indices':maxmin_indices[TOPK:, layer, neuron],
-        #     'max_acts':dict_all['acts'][:TOPK],
-        #     'min_acts':dict_all['acts'][TOPK:],
-        #     'max_val':summary_dict[('hook_post', 'max')]['values'][0,layer,neuron],
-        #     'min_val':summary_dict[('hook_post', 'min')]['values'][0,layer,neuron],
-        #     'avg_val':summary_dict['mean'][layer,neuron],
-        #     'act_freq':summary_dict['summary_freq'][layer,neuron],
-        #     'argmax_tokens':summary_dict[('hook_post', 'max')]['indices'][:,layer,neuron],
-        #     'argmin_tokens':summary_dict[('hook_post', 'min')]['indices'][:,layer,neuron],
-        # }
+                    activation_data[key][key1]=value1[...,layer,neuron]
+        #visualisation
         # We add some text to tell us what layer and neuron we're looking at
         heading = f"<h2>Layer: <b>{layer}</b>. Neuron Index: <b>{neuron}</b></h2>\n"
         HTML = TITLE + heading + neuron_vis_full(
-                neuron_data=neuron_data,
+                activation_data=activation_data,
                 dataset=dataset,
                 tokenizer=tokenizer,
         )

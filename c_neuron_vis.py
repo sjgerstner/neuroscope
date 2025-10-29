@@ -33,7 +33,7 @@ def _vis_example(i, indices, acts, dataset, tokenizer, key, stop_tokens=None):
         )
     )+"\n</div>"
 
-def neuron_vis_full(neuron_data, dataset, tokenizer):
+def neuron_vis_full(activation_data, dataset, tokenizer):
     """Full neuron visualisation for a given neuron.
     Args:
         neuron_data (dict): contains summary statistics and data on max/min activations
@@ -54,16 +54,16 @@ def neuron_vis_full(neuron_data, dataset, tokenizer):
     htmls.append('<table><tr>')
     htmls.extend([f"<td><h4>{case}</h4></td>" for case in CASES])
     htmls.append('</tr><tr>')
-    htmls.extend([f"<td>Frequency: <b>{neuron_data[(case, 'freq')]:.2%}</b>.</td>" for case in CASES])
+    htmls.extend([f"<td>Frequency: <b>{activation_data[(case, 'freq')]:.2%}</b>.</td>" for case in CASES])
     htmls.append('</tr>')
     for act_type in VALUES_TO_SUMMARISE:
         htmls.append('<tr>')
         htmls.extend(
             [f"""<td>
             <b>{act_type}</b>:<br>
-            Max: <b>{neuron_data[(case,act_type,'max')]['values'][0]:.4f}</b>;<br>
-            Min: <b>{neuron_data[(case,act_type,'min')]['values'][0]:.4f}</b>;<br>
-            Avg: <b>{neuron_data[(case,act_type,'sum')]:.4f}</b>.
+            Max: <b>{activation_data[(case,act_type,'max')]['values'][0]:.4f}</b>;<br>
+            Min: <b>{activation_data[(case,act_type,'min')]['values'][0]:.4f}</b>;<br>
+            Avg: <b>{activation_data[(case,act_type,'sum')]:.4f}</b>.
             </td>
             """#TODO fewer digits
             for case in CASES
@@ -77,13 +77,13 @@ def neuron_vis_full(neuron_data, dataset, tokenizer):
         for act_type in VALUES_TO_SUMMARISE:
             for reduction in ['max','min']:
                 key = (case, act_type, reduction)
-                if 'all_acts' in neuron_data[key] and neuron_data[key]['values'][0]!=0:
+                if 'all_acts' in activation_data[key] and activation_data[key]['values'][0]!=0:
                     htmls.append(f'<h3>{reduction} {act_type} activations')
-                    for i in range(neuron_data[key]['indices'].shape[0]):
+                    for i in range(activation_data[key]['indices'].shape[0]):
                         # print(max_indices[i])
                         # print(dataset[int(max_indices[i])])
                         #ignore samples in which no token satisfies the condition:
-                        first_acts=neuron_data[key]['all_acts'][i,:,0]#sample pos act_type
+                        first_acts=activation_data[key]['all_acts'][i,:,0]#sample pos act_type
                         # if case=='gate+_in-' and act_type=='hook_post':
                         #     print(first_acts)
                         if allclose(first_acts, zeros_like(first_acts), atol=1e-7):
@@ -91,9 +91,9 @@ def neuron_vis_full(neuron_data, dataset, tokenizer):
                         htmls.append(
                             _vis_example(
                                 i=i,
-                                indices=neuron_data[key]['indices'],
-                                acts=neuron_data[key]['all_acts'],
-                                stop_tokens=neuron_data[key]['position_indices']+3,
+                                indices=activation_data[key]['indices'],
+                                acts=activation_data[key]['all_acts'],
+                                stop_tokens=activation_data[key]['position_indices']+3,
                                 dataset=dataset,
                                 tokenizer=tokenizer,
                                 key=key,
