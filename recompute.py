@@ -8,7 +8,7 @@ import einops
 from utils import ModelWrapper, detect_cases, get_act_type_keys, adapt_activations
 
 def recompute_acts(
-    model:ModelWrapper, layer:int, neuron:int, indices:torch.Tensor, save_path:str, key:tuple[str,str,str]
+    model:ModelWrapper, layer:int, neuron:int, indices_within_dataset:torch.Tensor, save_path:str, key:tuple[str,str,str]
     ) -> dict[str,torch.Tensor|list[str]]:
     """Recompute activations for the given neuron and dataset indices, using cached residual stream activations.
 
@@ -16,7 +16,7 @@ def recompute_acts(
         model (ModelWrapper): the model
         layer (int): layer index
         neuron (int): neuron index within layer
-        indices (torch.Tensor[int]): indices of relevant text examples within the dataset
+        indices_within_dataset (torch.Tensor[int]): indices of relevant text examples within the dataset
         save_path (str): path where cached residual stream activations are stored.
             Specifically, this should be the parent directory of "activation_cache".
 
@@ -28,11 +28,14 @@ def recompute_acts(
     act_type_keys = get_act_type_keys(key)
     if not act_type_keys:
         return {}
+    with open(f"{save_path}/activation_cache/batch_size.txt", 'r', encoding='utf-8') as f:
+        batch_size = int(f.read())
     ln_cache=[]
     positions=[]
-    for i in indices:
-        i=int(i)#just in case
-        batch_file = f"{save_path}/activation_cache/batch{i}"
+    for index_within_dataset in indices_within_dataset:
+        index_within_dataset=int(index_within_dataset)#just in case
+        batch_index, index_within_batch = divmod(index_within_dataset, batch_size)
+        batch_file = f"{save_path}/activation_cache/batch{batch_index}"
         if exists(f"{batch_file}.pt"):
             saved_stuff = torch.load(f"{batch_file}.pt")
         else:
@@ -40,10 +43,10 @@ def recompute_acts(
             with open(f"{batch_file}.pickle", 'rb') as f:
                 saved_stuff = pickle.load(f)
         #ln cache
-        subcache = saved_stuff['ln_cache'] #batch pos layer d_model
-        ln_cache.append(subcache[:,:,layer,:])
+        subcache = saved_stuff['ln_cache'][index_within_batch] #batch pos layer d_model
+        ln_cache.append(subcache[...,layer,:])
         #positions of max/min activations within sequence
-        single_pos = saved_stuff[key]['indices'][:,layer,neuron]
+        single_pos = saved_stuff[key]['indices'][index_within_batch,layer,neuron]
         positions.append(single_pos)
     ln_cache = torch.cat(ln_cache).cuda()
     positions = torch.cat(positions).cuda()
@@ -95,7 +98,7 @@ def recompute_acts_if_necessary(args, summary_dict, maxmin_keys, neuron_dir, sin
         activation_data = {case_key:recompute_acts(
                 **kwargs,
                 key=case_key,
-                indices=summary_dict[case_key]['indices'][...,kwargs['layer'],kwargs['neuron']],
+                indices_within_dataset=summary_dict[case_key]['indices'][...,kwargs['layer'],kwargs['neuron']],
             )
             for case_key in maxmin_keys}
         torch.save(activation_data, activations_file)

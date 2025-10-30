@@ -4,7 +4,7 @@ The code was written with batch size 1 in mind.
 Other batch sizes will almost certainly lead to bugs.
 """
 
-#TODO enable other batch sizes, don't forget problems with padding tokens
+#TODO enable other batch sizes
 #TODO (also other files) pathlib
 
 
@@ -156,6 +156,8 @@ def get_all_neuron_acts_on_dataset(
 
     if not os.path.exists(f'{path}/activation_cache'):
         os.mkdir(f'{path}/activation_cache')
+    with open(f'{path}/activation_cache/batch_size.txt', 'w', encoding='utf-8') as f:
+        f.write(args.batch_size)
     for i, batch in tqdm(enumerate(batched_dataset)):
         batch_file = f"{path}/activation_cache/batch{i}"
         if os.path.exists(f"{batch_file}.pt"):
