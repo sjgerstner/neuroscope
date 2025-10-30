@@ -32,14 +32,19 @@ def recompute_acts(
     positions=[]
     for i in indices:
         i=int(i)#just in case
-        with open(f"{save_path}/activation_cache/batch{i}.pickle", 'rb') as f:
-            saved_stuff = pickle.load(f)
-            #ln cache
-            subcache = saved_stuff['ln_cache'] #batch pos layer d_model
-            ln_cache.append(subcache[:,:,layer,:])
-            #positions of max/min activations within sequence
-            single_pos = saved_stuff[key]['indices'][:,layer,neuron]
-            positions.append(single_pos)
+        batch_file = f"{save_path}/activation_cache/batch{i}"
+        if exists(f"{batch_file}.pt"):
+            saved_stuff = torch.load(f"{batch_file}.pt")
+        else:
+            assert exists(f"{batch_file}.pickle")
+            with open(f"{batch_file}.pickle", 'rb') as f:
+                saved_stuff = pickle.load(f)
+        #ln cache
+        subcache = saved_stuff['ln_cache'] #batch pos layer d_model
+        ln_cache.append(subcache[:,:,layer,:])
+        #positions of max/min activations within sequence
+        single_pos = saved_stuff[key]['indices'][:,layer,neuron]
+        positions.append(single_pos)
     ln_cache = torch.cat(ln_cache).cuda()
     positions = torch.cat(positions).cuda()
 
