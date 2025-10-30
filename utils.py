@@ -24,31 +24,33 @@ def get_act_type_keys(key):
 
 def detect_cases(gate_values, in_values, keys=None):
     """Given two tensors (or arrays),
-    return a dictionary with four 0-1 tensors (arrays)
+    return a dictionary with up to four 0-1 tensors (arrays)
     indicating the four possible sign combinations.
+    Ignores exact zeros (which probably come from padding tokens).
 
     Args:
         gate_values (Tensor or any type that supports >, ~ and * operations): "gate" values
         in_values (same): "in" values
+        keys (list[str]|None): the cases we are interested in. Defaults to None (all four cases).
 
     Returns:
         dict[str, Tensor]:
             keys are the ones in CASES,
             values are 0-1 tensors of the same shape as gate_values and in_values.
     """
-    gate_positive = gate_values>0
-    in_positive = in_values>0
+    # gate_positive = gate_values>0
+    # in_positive = in_values>0
     if keys is None:
         keys=CASES
     bins={}
     if 'gate+_in+' in keys:
-        bins['gate+_in+'] = gate_positive*in_positive
+        bins['gate+_in+'] = (gate_values>0)*(in_values>0)
     if 'gate+_in-' in keys:
-        bins['gate+_in-'] = gate_positive*~in_positive
+        bins['gate+_in-'] = (gate_values>0)*(in_values<0)
     if 'gate-_in+' in keys:
-        bins['gate-_in+'] = (~gate_positive)*in_positive
+        bins['gate-_in+'] = (gate_values<0)*(in_values>0)
     if 'gate-_in-' in keys:
-        bins['gate-_in-'] = (~gate_positive)*~in_positive
+        bins['gate-_in-'] = (gate_values<0)*(in_values<0)
     return bins
 
 def refactor_glu(summary_dict, sign_to_adapt):
