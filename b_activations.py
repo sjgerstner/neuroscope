@@ -14,8 +14,10 @@ import pickle
 from tqdm import tqdm
 
 import torch
+from torch.utils.data import DataLoader
+from torch.nn.utils.rnn import pad_sequence
 import einops
-
+from transformers import DataCollatorWithPadding
 import datasets
 
 from utils import (
@@ -68,8 +70,8 @@ def _get_all_neuron_acts(model, ids_and_mask, names_filter, max_seq_len=1024):
 
     intermediate = {}
 
-    batch_size = ids_and_mask['input_ids'].shape[0]
-    seq_len = ids_and_mask['input_ids'].shape[1]
+    batch_size = len(ids_and_mask['input_ids'])
+    seq_len = max(len(ids) for ids in ids_and_mask['input_ids'])
 
     _logits, raw_cache = model.run_with_cache(
         ids_and_mask['input_ids'],
@@ -143,10 +145,20 @@ def get_all_neuron_acts_on_dataset(
     if path is None:
         path = '.'
 
+    # collator = DataCollatorWithPadding(
+    #     tokenizer=None,          # we don’t need a tokenizer because the fields are already ints
+    #     padding=True,            # pad to the longest sequence in the batch
+    #     max_length=None,         # you can set a hard max_length if you wish
+    #     pad_to_multiple_of=None, # optional, useful for certain hardware constraints
+    # )
     batched_dataset = dataset.batch(
         batch_size=args.batch_size,
         drop_last_batch=False
         ) #preserves order
+    # batched_dataset = DataLoader(
+    #     dataset, batch_size=args.batch_size, shuffle=False, drop_last=False,
+    #     collate_fn=collator,
+    # )#preserves order
 
     names_filter = [
         f"blocks.{layer}.{hook}"
@@ -156,19 +168,33 @@ def get_all_neuron_acts_on_dataset(
 
     if not os.path.exists(f'{path}/activation_cache'):
         os.mkdir(f'{path}/activation_cache')
-    with open(f'{path}/activation_cache/batch_size.txt', 'w', encoding='utf-8') as f:
-        f.write(args.batch_size)
+    previous_batch_size = 0
+    if os.path.exists(f'{path}/activation_cache/batch_size.txt'):
+        with open(f'{path}/activation_cache/batch_size.txt', 'r', encoding='utf-8') as f:
+            previous_batch_size = int(f.read())
+    #print(previous_batch_size, args.batch_size)
+    batch_size_unchanged = previous_batch_size==args.batch_size
+    if not batch_size_unchanged:
+        with open(f'{path}/activation_cache/batch_size.txt', 'w', encoding='utf-8') as f:
+            f.write(str(args.batch_size))
     for i, batch in tqdm(enumerate(batched_dataset)):
+        # if i==0:
+        #     print(batch)
+        batch = {
+            'input_ids': pad_sequence(batch['input_ids'], padding_value=model.tokenizer.pad_token_type_id),
+            'attention_mask': pad_sequence(batch['attention_mask'])
+        }
         batch_file = f"{path}/activation_cache/batch{i}"
-        if os.path.exists(f"{batch_file}.pt"):
+        if batch_size_unchanged and os.path.exists(f"{batch_file}.pt"):
             intermediate = torch.load(f"{batch_file}.pt")
-        elif os.path.exists(f"{batch_file}.pickle"):
+        elif batch_size_unchanged and os.path.exists(f"{batch_file}.pickle"):
             with open(f"{batch_file}.pickle", 'rb') as f:
                 intermediate = _move_to(pickle.load(f), device='cuda')
         else:
             intermediate = _get_all_neuron_acts(model, batch, names_filter, dataset.max_seq_len)
             torch.save(intermediate, f"{batch_file}.pt")
         del intermediate['ln_cache']
+        #TODO the following stuff could probably be more efficient, even the base case i==0
         if i==0:
             out_dict={}
             for key,value in intermediate.items():
@@ -209,9 +235,9 @@ def get_all_neuron_acts_on_dataset(
                         arg=True,
                         k=min(i+1, args.examples_per_neuron),
                         )#k+1 layer neuron -> k layer neuron
-                    if args.test:
-                        print(out_dict[key]['indices'].shape)
-                        print(vi['indices'].shape)
+                    # if args.test:
+                    #     print(out_dict[key]['indices'].shape)
+                    #     print(vi['indices'].shape)
                     out_dict[key]['values'] = vi['values']
                     out_dict[key]['indices'] = torch.gather(
                         out_dict[key]['indices'], dim=0, index=vi['indices']
@@ -273,8 +299,15 @@ if __name__=="__main__":
     dataset = datasets.load_from_disk(f'{args.datasets_dir}/{args.dataset}')
     assert isinstance(dataset, datasets.Dataset)
     if args.test:
-        dataset = dataset.select(range(2))
+        dataset = dataset.select(range(4))
     add_properties(dataset)
+    # dataset = dataset.with_format(
+    #     type="torch",
+    #     columns=["input_ids", "attention_mask"],
+    #     pad=True,                # <-- enable automatic padding
+    #     padding_value=model.tokenizer.pad_token_type_id,         # match your model's pad token
+    #     pad_to_multiple_of=None
+    # )
 
     print('computing activations...')
     SUMMARY_FILE = f'{SAVE_PATH}/summary{"_refactored" if args.refactor_glu else""}'

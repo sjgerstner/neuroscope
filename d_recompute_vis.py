@@ -80,6 +80,7 @@ model = utils.ModelWrapper.from_pretrained(
 assert model.W_gate is not None
 
 tokenizer = model.tokenizer
+TOPK, N_LAYERS, N_NEURONS = summary_dict[('gate+_in+', 'hook_post', 'max')]['indices'].shape
 if args.refactor_glu and not refactored_already:
     #first we detect which neurons to refactor and then we update the model
     sign_to_adapt = torch.sign(einops.einsum(
@@ -89,6 +90,8 @@ if args.refactor_glu and not refactored_already:
     torch.save(summary_dict, f"{SUMMARY_FILE}.pt")
     del model
     model = utils.ModelWrapper.from_pretrained(args.model, refactor_glu=True, device='cuda')
+else:
+    sign_to_adapt = torch.ones(size=(N_LAYERS, N_NEURONS), dtype=torch.int)
 #TOPK = summary_dict[('gate+_in+', 'max')]['indices'].shape[0]#topk layer neuron
 if args.neurons=='all':
     layer_neuron_list = [range(model.cfg.d_mlp) for _layer in range(model.cfg.n_layers)]
@@ -105,7 +108,6 @@ maxmin_keys = [key for key in summary_dict.keys() if key[-1] in ['max','min']]
 #     [summary_dict[key]['indices'] for key in maxmin_keys]
 # )
 
-TOPK, N_LAYERS, N_NEURONS = summary_dict[('gate+_in+', 'hook_post', 'max')]['indices'].shape
 if args.neurons=='all':
     layer_neuron_list = [range(N_NEURONS) for _layer in range(N_LAYERS)]
 elif args.neurons:
