@@ -1,5 +1,5 @@
 #TODO adapt to changes in activations code
-# (pickle vs pt, keys)
+# (keys)
 
 from argparse import ArgumentParser
 import os
@@ -49,13 +49,17 @@ TITLE = f"<h1>Model: <b>{args.model}</b></h1>\n"
 
 torch.set_grad_enabled(False)
 
-SUMMARY_FILE = f'{SAVE_PATH}/summary{"_refactored" if args.refactor_glu else""}.pickle'
-if refactored_already:= os.path.exists(SUMMARY_FILE):
+SUMMARY_FILE = f'{SAVE_PATH}/summary{"_refactored" if args.refactor_glu else""}'
+if refactored_already:= os.path.exists(f"{SUMMARY_FILE}.pt") or os.path.exists(f"{SUMMARY_FILE}.pickle"):
     MY_FILE = SUMMARY_FILE
 else:
-    MY_FILE = f'{SAVE_PATH}/summary.pickle'
-with open(MY_FILE, 'rb') as f:
-    summary_dict = _move_to(pickle.load(f), 'cuda')
+    MY_FILE = f'{SAVE_PATH}/summary'
+if os.path.exists(f"{MY_FILE}.pt"):
+    summary_dict = torch.load(f"{MY_FILE}.pt")
+else:
+    assert os.path.exists(f"{MY_FILE}.pickle")
+    with open(f"{MY_FILE}.pickle", 'rb') as f:
+        summary_dict = _move_to(pickle.load(f), 'cuda')
 # if args.test:
 #     #print(f"summary_dict: {summary_dict.keys()}")
 #     for key,value in summary_dict.items():
@@ -82,8 +86,7 @@ if args.refactor_glu and not refactored_already:
         model.W_in.detach().cuda(), model.W_gate.detach().cuda(), "l d n, l d n -> l n"
     ))
     summary_dict = utils.refactor_glu(summary_dict, sign_to_adapt)
-    with open(SUMMARY_FILE, 'wb') as f:
-        pickle.dump(summary_dict, f)
+    torch.save(summary_dict, f"{SUMMARY_FILE}.pt")
     del model
     model = utils.ModelWrapper.from_pretrained(args.model, refactor_glu=True, device='cuda')
 #TOPK = summary_dict[('gate+_in+', 'max')]['indices'].shape[0]#topk layer neuron

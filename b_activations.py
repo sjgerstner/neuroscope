@@ -5,7 +5,6 @@ Other batch sizes will almost certainly lead to bugs.
 """
 
 #TODO enable other batch sizes, don't forget problems with padding tokens
-#TODO replace pickle with pt
 #TODO (also other files) pathlib
 
 
@@ -158,13 +157,15 @@ def get_all_neuron_acts_on_dataset(
     if not os.path.exists(f'{path}/activation_cache'):
         os.mkdir(f'{path}/activation_cache')
     for i, batch in tqdm(enumerate(batched_dataset)):
-        if i<args.resume_from or os.path.exists(f"{path}/activation_cache/batch{i}.pickle"):
-            with open(f"{path}/activation_cache/batch{i}.pickle", 'rb') as f:
+        batch_file = f"{path}/activation_cache/batch{i}"
+        if os.path.exists(f"{batch_file}.pt"):
+            intermediate = torch.load(f"{batch_file}.pt")
+        elif os.path.exists(f"{batch_file}.pickle"):
+            with open(f"{batch_file}.pickle", 'rb') as f:
                 intermediate = _move_to(pickle.load(f), device='cuda')
         else:
             intermediate = _get_all_neuron_acts(model, batch, names_filter, dataset.max_seq_len)
-            with open(f"{path}/activation_cache/batch{i}.pickle", 'wb') as f:
-                pickle.dump(_move_to(intermediate, 'cpu'), f)
+            torch.save(intermediate, f"{batch_file}.pt")
         del intermediate['ln_cache']
         if i==0:
             out_dict={}
@@ -244,7 +245,7 @@ if __name__=="__main__":
     )
     parser.add_argument('--batch_size', default=1, type=int)
     parser.add_argument('--examples_per_neuron', default=16, type=int)
-    parser.add_argument('--resume_from', default=0)
+    #parser.add_argument('--resume_from', default=0)
     parser.add_argument('--datasets_dir', default='datasets')
     parser.add_argument('--results_dir', default='results')
     parser.add_argument('--save_to', default=None)
@@ -274,14 +275,13 @@ if __name__=="__main__":
     add_properties(dataset)
 
     print('computing activations...')
-    SUMMARY_FILE = f'{SAVE_PATH}/summary{"_refactored" if args.refactor_glu else""}.pickle'
-    if not os.path.exists(f'{SAVE_PATH}/summary.pickle'):
+    SUMMARY_FILE = f'{SAVE_PATH}/summary{"_refactored" if args.refactor_glu else""}'
+    if not os.path.exists(f'{SUMMARY_FILE}.pickle') and not os.path.exists(f'{SUMMARY_FILE}.pt'):
         out_dict = get_all_neuron_acts_on_dataset(
             args=args,
             model=model,
             dataset=dataset,
             path=SAVE_PATH,
         )
-        with open(f'{SAVE_PATH}/summary.pickle', 'wb') as f:
-            pickle.dump(_move_to(out_dict, 'cpu'), f)
+        torch.save(out_dict, f'{SUMMARY_FILE}.pt')
     print('done!')
