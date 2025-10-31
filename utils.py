@@ -22,6 +22,7 @@ _relevant_signs = {
 RELEVANT_SIGNS = {
     case : {
         **_relevant_signs[case],
+        'swish': -1,
         'hook_post' : _relevant_signs[case]['hook_pre_linear']*_relevant_signs[case]['hook_pre'],
     }
     for case in CASES

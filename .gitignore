@@ -4,6 +4,7 @@ results/OLMo-7B-0424-hf_dolma-small/activation_cache
 results/OLMo-1B-hf_dolma-small
 results/test
 testing-react
+.vscode
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

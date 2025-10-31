@@ -75,7 +75,7 @@ def recompute_acts(
         if atk not in intermediate:
             intermediate[atk] = bins[key[0]] * intermediate['_'.join(atk.split('_')[2:])]
             #hack: convert -0.0 to a small negative value
-            if key[-1]=='min':
+            if torch.all(intermediate[atk]<=0):
                 intermediate[atk][intermediate[atk]==-0.0]=-1e-7
 
     recomputed_acts = torch.stack([intermediate[hook] for hook in act_type_keys], dim=-1)

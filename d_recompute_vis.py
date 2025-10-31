@@ -151,7 +151,7 @@ for layer,neuron_list in enumerate(layer_neuron_list):
         HTML = TITLE + heading + neuron_vis_full(
                 activation_data=activation_data,
                 dataset=dataset,
-                tokenizer=tokenizer,
+                model=model,
         )
         with open(f'{neuron_dir}/vis.html', 'w', encoding="utf-8") as f:
             f.write(HTML)
