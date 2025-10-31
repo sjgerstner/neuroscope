@@ -49,15 +49,18 @@ def neuron_vis_full(activation_data, dataset, tokenizer):
     htmls.extend([f"<td>Frequency: <b>{activation_data[(case, 'freq')]:.2%}</b>.</td>" for case in CASES])
     htmls.append('</tr>')
     for act_type in VALUES_TO_SUMMARISE:
+        extreme_values = {}
+        for case in CASES:
+            extreme_values[case] = activation_data[(case,act_type,'max')]['values'][0]
         htmls.append('<tr>')
         htmls.extend(
             [f"""<td>
             <b>{act_type}</b>:<br>
-            Max: <b>{activation_data[(case,act_type,'max')]['values'][0]:.4f}</b>;<br>
-            Min: <b>{activation_data[(case,act_type,'min')]['values'][0]:.4f}</b>;<br>
-            Avg: <b>{activation_data[(case,act_type,'sum')]:.4f}</b>.
+            Max: <b>{extreme_values[case]:.2f if extreme_values[case]>0 else 0}</b>;<br>
+            Min: <b>{extreme_values[case]:.2f if extreme_values[case]<0 else 0}</b>;<br>
+            Avg: <b>{activation_data[(case,act_type,'sum')]:.2f}</b>.
             </td>
-            """#TODO fewer digits
+            """
             for case in CASES
             ]
         )
@@ -67,30 +70,29 @@ def neuron_vis_full(activation_data, dataset, tokenizer):
     for case in CASES:
         htmls.append(f'<h2>Prototypical activations for case {case}</h2>')
         for act_type in VALUES_TO_SUMMARISE:
-            for reduction in ['max','min']:
-                key = (case, act_type, reduction)
-                if 'all_acts' in activation_data[key] and activation_data[key]['values'][0]!=0:
-                    htmls.append(f'<h3>{reduction} {act_type} activations')
-                    for i in range(activation_data[key]['indices'].shape[0]):
-                        # print(max_indices[i])
-                        # print(dataset[int(max_indices[i])])
-                        #ignore samples in which no token satisfies the condition:
-                        first_acts=activation_data[key]['all_acts'][i,:,0]#sample pos act_type
-                        # if case=='gate+_in-' and act_type=='hook_post':
-                        #     print(first_acts)
-                        if allclose(first_acts, zeros_like(first_acts), atol=1e-7):
-                            break
-                        htmls.append(
-                            _vis_example(
-                                i=i,
-                                indices=activation_data[key]['indices'],
-                                acts=activation_data[key]['all_acts'],
-                                stop_tokens=activation_data[key]['position_indices']+3,
-                                dataset=dataset,
-                                tokenizer=tokenizer,
-                                key=key,
-                                )
-                        )
+            key = (case, act_type, 'max')
+            if 'all_acts' in activation_data[key] and activation_data[key]['values'][0]!=0:
+                htmls.append(f'<h3>Extreme {act_type} activations')
+                for i in range(activation_data[key]['indices'].shape[0]):
+                    # print(max_indices[i])
+                    # print(dataset[int(max_indices[i])])
+                    #ignore samples in which no token satisfies the condition:
+                    first_acts=activation_data[key]['all_acts'][i,:,0]#sample pos act_type
+                    # if case=='gate+_in-' and act_type=='hook_post':
+                    #     print(first_acts)
+                    if allclose(first_acts, zeros_like(first_acts), atol=1e-7):
+                        break
+                    htmls.append(
+                        _vis_example(
+                            i=i,
+                            indices=activation_data[key]['indices'],
+                            acts=activation_data[key]['all_acts'],
+                            stop_tokens=activation_data[key]['position_indices']+3,
+                            dataset=dataset,
+                            tokenizer=tokenizer,
+                            key=key,
+                            )
+                    )
             htmls.append('<hr>')
         htmls.append('<hr>')
     return "\n".join(htmls)
