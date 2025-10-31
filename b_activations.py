@@ -14,10 +14,10 @@ import pickle
 from tqdm import tqdm
 
 import torch
-from torch.utils.data import DataLoader
+#from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
 import einops
-from transformers import DataCollatorWithPadding
+#from transformers import DataCollatorWithPadding
 import datasets
 
 from utils import (
@@ -25,11 +25,12 @@ from utils import (
     _move_to,
     add_properties,
     VALUES_TO_SUMMARISE,
+    RELEVANT_SIGNS,
     detect_cases
 )
 
 HOOKS_TO_CACHE = ['ln2.hook_normalized', 'mlp.hook_post', 'mlp.hook_pre', 'mlp.hook_pre_linear']
-REDUCTIONS = ['max', 'min', 'sum']
+REDUCTIONS = ['max', 'sum']
 
 def _get_reduce_and_arg(cache_item, reduction, k=1, to_device='cpu'):
     if reduction not in ('max', 'min', 'top', 'bottom'):
@@ -109,18 +110,20 @@ def _get_all_neuron_acts(model, ids_and_mask, names_filter, max_seq_len=1024):
         for key_to_summarise in VALUES_TO_SUMMARISE:
             if key_to_summarise.startswith('hook'):
                 values = cache[f'mlp.{key_to_summarise}']
-            elif key_to_summarise=='swish':
+            elif key_to_summarise=='swish' and case.startswith('gate-'):
                 values = model.actfn(cache['mlp.hook_pre'])
             else:
-                raise NotImplementedError(key_to_summarise)
+                continue
             relevant_values = values*zero_one
             for reduction in REDUCTIONS:
                 intermediate[(case, key_to_summarise, reduction)] = _get_reduce(
-                    relevant_values,
+                    relevant_values if reduction=="sum" else torch.abs(relevant_values),
                     reduction=reduction,
                     arg=(reduction!="sum"),
                 )
                 #batch pos layer neuron -> {'values': batch layer neuron, 'indices': batch layer neuron}
+                if reduction=='max':
+                    intermediate[(case, key_to_summarise, reduction)]['values'] *= RELEVANT_SIGNS[case][key_to_summarise]
     return intermediate
 
 def get_all_neuron_acts_on_dataset(

@@ -12,6 +12,20 @@ CASES = ['gate+_in+',
         'gate+_in-',
         'gate-_in+',
         'gate-_in-']
+_relevant_signs = {
+    case : {
+        'hook_pre_linear': +1 if case[-1]=='+' else -1,
+        'hook_pre': +1 if case.startswith('gate+') else -1,
+    }
+    for case in CASES
+}
+RELEVANT_SIGNS = {
+    case : {
+        **_relevant_signs[case],
+        'hook_post' : _relevant_signs[case]['hook_pre_linear']*_relevant_signs[case]['hook_pre'],
+    }
+    for case in CASES
+}
 
 def get_act_type_keys(key):
     if key[0].startswith('gate+') and key[1]=='swish':
