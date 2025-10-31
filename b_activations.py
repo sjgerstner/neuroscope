@@ -203,7 +203,10 @@ def get_all_neuron_acts_on_dataset(
                 elif key[-1] in ['max', 'min']:
                     out_dict[key] = {
                         'values':value['values'],
-                        'indices':torch.zeros(size=value['values'].shape, dtype=torch.int)
+                        'indices':torch.stack([
+                            torch.full((model.cfg.n_layers,model.cfg.n_neurons), counter)
+                            for counter in range(args.batch_size)
+                        ])
                     }
         else:
             for key,value in out_dict.items():
@@ -223,7 +226,10 @@ def get_all_neuron_acts_on_dataset(
                         'indices':torch.cat(
                             [
                                 value['indices'],
-                                torch.full(size=intermediate[key]['values'].shape, fill_value=i, dtype=torch.int)
+                                torch.stack([
+                                        torch.full((model.cfg.n_layers,model.cfg.n_neurons), i*args.batch_size+counter)
+                                        for counter in range(args.batch_size)
+                                    ])
                                 ]
                             )
                     }#both entries: sample layer neuron

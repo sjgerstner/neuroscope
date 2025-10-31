@@ -1,6 +1,7 @@
 """single function recompute_acts"""
 from os.path import exists
 import pickle
+from tqdm import tqdm
 
 import torch
 import einops
@@ -43,13 +44,13 @@ def recompute_acts(
             with open(f"{batch_file}.pickle", 'rb') as f:
                 saved_stuff = pickle.load(f)
         #ln cache
-        subcache = saved_stuff['ln_cache'][index_within_batch] #batch pos layer d_model
+        subcache = saved_stuff['ln_cache'][index_within_batch] #(batch) pos layer d_model
         ln_cache.append(subcache[...,layer,:])
         #positions of max/min activations within sequence
         single_pos = saved_stuff[key]['indices'][index_within_batch,layer,neuron]
         positions.append(single_pos)
-    ln_cache = torch.cat(ln_cache).cuda()
-    positions = torch.cat(positions).cuda()
+    ln_cache = torch.stack(ln_cache).cuda()
+    positions = torch.stack(positions).cuda()
 
     intermediate = {}
     intermediate['hook_pre'] = einops.einsum(
@@ -100,7 +101,7 @@ def recompute_acts_if_necessary(args, summary_dict, maxmin_keys, neuron_dir, sin
                 key=case_key,
                 indices_within_dataset=summary_dict[case_key]['indices'][...,kwargs['layer'],kwargs['neuron']],
             )
-            for case_key in maxmin_keys}
+            for case_key in tqdm(maxmin_keys)}
         torch.save(activation_data, activations_file)
     return activation_data
 

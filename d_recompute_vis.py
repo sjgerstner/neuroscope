@@ -123,11 +123,13 @@ for layer,neuron_list in enumerate(layer_neuron_list):
     layer_dir = f"{SAVE_PATH}/L{layer}"
     if not os.path.exists(layer_dir):
         os.mkdir(layer_dir)
-    for neuron in tqdm(neuron_list):
+    for neuron in neuron_list:
+        print(f'> processing neuron {neuron}...')
         neuron_dir = f"{layer_dir}/N{neuron}"
         if not os.path.exists(neuron_dir):
             os.mkdir(neuron_dir)
         #recomputing neuron activations on max and min examples
+        print('>> gathering/recomputing data from cache...')
         activation_data = recompute.recompute_acts_if_necessary(
             args=args,
             summary_dict=summary_dict,
@@ -143,6 +145,7 @@ for layer,neuron_list in enumerate(layer_neuron_list):
             layer=layer, neuron=neuron,
         )
         #visualisation
+        print('>> creating html page...')
         # We add some text to tell us what layer and neuron we're looking at
         heading = f"<h2>Layer: <b>{layer}</b>. Neuron Index: <b>{neuron}</b></h2>\n"
         HTML = TITLE + heading + neuron_vis_full(
