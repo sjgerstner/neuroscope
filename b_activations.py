@@ -83,18 +83,22 @@ def _get_all_neuron_acts(model, ids_and_mask, names_filter, max_seq_len=1024):
     # with keys 'blocks.layer.mlp.hook_post' etc
     # and entries mostly with shape (batch pos neuron)
 
-    mask = einops.rearrange(ids_and_mask['attention_mask'], 'batch pos -> batch pos 1 1').cuda()
+    mask = einops.rearrange(ids_and_mask['attention_mask'], 'batch pos -> batch pos 1 1').cpu()
     #batch pos neuron
     cache={}
     for key_to_summarise in HOOKS_TO_CACHE:
         # print(key_to_summarise)
         # print(raw_cache[f'blocks.0.{key_to_summarise}'].shape)
         cache[key_to_summarise] = torch.stack(
-            [raw_cache[f'blocks.{layer}.{key_to_summarise}'] for layer in range(model.cfg.n_layers)],
+            [
+                raw_cache[f'blocks.{layer}.{key_to_summarise}'].cpu()#only load it to gpu when needed
+                for layer in range(model.cfg.n_layers)
+            ],
             dim=-2,#batch pos neuron/d_model -> batch pos layer neuron/d_model
         )
         # print(cache[key_to_summarise].shape)
         cache[key_to_summarise] *= mask
+        #cache[key_to_summarise] = cache[key_to_summarise].cpu()
     del raw_cache
 
     #ln_cache: initialise with zeros (batch pos layer d_model)
@@ -109,12 +113,13 @@ def _get_all_neuron_acts(model, ids_and_mask, names_filter, max_seq_len=1024):
     #intermediate['mean'] = _get_reduce(cache['mlp.hook_post'], 'sum')#not needed anymore
     bins=detect_cases(gate_values=cache['mlp.hook_pre'], in_values=cache['mlp.hook_pre_linear'])
     for case,zero_one in bins.items():
+        zero_one = zero_one.cuda()
         intermediate[(case, 'freq')] = _get_reduce(zero_one, 'sum')
         for key_to_summarise in VALUES_TO_SUMMARISE:
             if key_to_summarise.startswith('hook'):
-                values = cache[f'mlp.{key_to_summarise}']
+                values = cache[f'mlp.{key_to_summarise}'].cuda()
             elif key_to_summarise=='swish':
-                values = model.actfn(cache['mlp.hook_pre'])
+                values = model.actfn(cache['mlp.hook_pre'].cuda())
             else:
                 continue
             relevant_values = values*zero_one
@@ -133,6 +138,8 @@ def _get_all_neuron_acts(model, ids_and_mask, names_filter, max_seq_len=1024):
                     # print(intermediate[(case, key_to_summarise, reduction)]['values'].shape)
                     intermediate[(case, key_to_summarise, reduction)]['values'] *= RELEVANT_SIGNS[case][key_to_summarise]
                     # print(intermediate[(case, key_to_summarise, reduction)]['values'].shape)
+            del values
+        zero_one = zero_one.cpu()
     return intermediate
 
 def get_all_neuron_acts_on_dataset(
