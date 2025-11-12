@@ -69,11 +69,16 @@ def recompute_acts(
     bins = detect_cases(
         gate_values=intermediate['hook_pre'],
         in_values=intermediate['hook_pre_linear'],
-        keys=[key[0]]
+        keys=[key[0]],
+        to_device='cuda',
     )
     for atk in act_type_keys:
         if atk not in intermediate:
+            #try:
             intermediate[atk] = bins[key[0]] * intermediate['_'.join(atk.split('_')[2:])]
+            # except RuntimeError as e:
+            #     print(key, atk, bins[key[0]].device, intermediate['_'.join(atk.split('_')[2:])].device)
+            #     raise e
             #hack: convert -0.0 to a small negative value
             if torch.all(intermediate[atk]<=0):
                 intermediate[atk][intermediate[atk]==-0.0]=-1e-7
