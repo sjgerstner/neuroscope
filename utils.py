@@ -37,9 +37,9 @@ def get_act_type_keys(key):
     keys = extra_keys+VALUES_TO_SUMMARISE
     return keys
 
-def detect_cases(gate_values, in_values, keys=None):
-    """Given two tensors (or arrays),
-    return a dictionary with up to four 0-1 tensors (arrays)
+def detect_cases(gate_values, in_values, keys=None, to_device='cpu'):
+    """Given two tensors,
+    return a dictionary with up to four 0-1 tensors
     indicating the four possible sign combinations.
     Ignores exact zeros (which probably come from padding tokens).
 
@@ -59,13 +59,13 @@ def detect_cases(gate_values, in_values, keys=None):
         keys=CASES
     bins={}
     if 'gate+_in+' in keys:
-        bins['gate+_in+'] = (gate_values>0)*(in_values>0)
+        bins['gate+_in+'] = ((gate_values>0)*(in_values>0)).to(to_device)
     if 'gate+_in-' in keys:
-        bins['gate+_in-'] = (gate_values>0)*(in_values<0)
+        bins['gate+_in-'] = ((gate_values>0)*(in_values<0)).to(to_device)
     if 'gate-_in+' in keys:
-        bins['gate-_in+'] = (gate_values<0)*(in_values>0)
+        bins['gate-_in+'] = ((gate_values<0)*(in_values>0)).to(to_device)
     if 'gate-_in-' in keys:
-        bins['gate-_in-'] = (gate_values<0)*(in_values<0)
+        bins['gate-_in-'] = ((gate_values<0)*(in_values<0)).to(to_device)
     return bins
 
 def refactor_glu(summary_dict, sign_to_adapt):
