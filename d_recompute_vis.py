@@ -21,6 +21,7 @@ parser.add_argument(
 )
 parser.add_argument('--datasets_dir', default='datasets')
 parser.add_argument('--results_dir', default='results')
+parser.add_argument('--site_dir', default='website')
 parser.add_argument('--save_to', default=None)
 parser.add_argument('--neurons',
     nargs='+',
@@ -41,6 +42,7 @@ else:
 #the id of the b_activations.py run
 
 SAVE_PATH = f"{args.results_dir}/{RUN_CODE}"
+VIS_PATH = f"{args.site_dir}/{RUN_CODE}"
 TITLE = f"<h1>Model: <b>{args.model}</b></h1>\n"
 
 torch.set_grad_enabled(False)
@@ -149,6 +151,6 @@ for layer,neuron_list in enumerate(layer_neuron_list):
                 dataset=dataset,
                 model=model,
         )
-        with open(f'{neuron_dir}/vis.html', 'w', encoding="utf-8") as f:
+        with open(f'{VIS_PATH}/L{layer}/N{neuron}/vis.html', 'w', encoding="utf-8") as f:
             f.write(HTML)
 print('done!')
