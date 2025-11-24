@@ -7,8 +7,8 @@ Make tokenized blocks of fixed length.
 from argparse import ArgumentParser
 import os
 
-from datasets import load_dataset#, DatasetDict
 from transformers import AutoTokenizer
+import datasets
 
 parser = ArgumentParser(description="""
 Preprocess given dataset for neuroscope,
@@ -44,7 +44,8 @@ parser.add_argument('--add_bos_token', type=bool, default=True,
 parser.add_argument('--max_length', type=int, default=1024,
                     help="length of example token blocks")
 parser.add_argument('--return_overflowing_tokens', type=bool, default=False,
-                    help="make additional training examples with overflowing tokens")
+                    help="""Make additional training examples with overflowing tokens.
+                    In this case it is currently not possible to keep the ids and metadata.""")
 parser.add_argument('--padding', type=bool, default=False,
                     help="pad examples to args.max_length")
 group = parser.add_mutually_exclusive_group()
@@ -56,8 +57,9 @@ group.add_argument('--Mtokens', type=int, default=20,
 group.add_argument('--save_all', action='store_true')
 args = parser.parse_args()
 
-dataset = load_dataset(args.dataset, split='train')
+dataset = datasets.load_dataset(args.dataset, split='train')
 print(dataset)
+assert isinstance(dataset, datasets.Dataset)
 
 if not args.save_all:#sample first to avoid wasted compute later
     print('selecting subset...')
@@ -70,7 +72,7 @@ if tokenizer.bos_token is None:
     tokenizer.bos_token = tokenizer.eos_token
     tokenizer.add_bos_token = args.add_bos_token
 
-def tokenization(example):
+def _tokenization(example):
     return tokenizer(
         example["text"],
         max_length=args.max_length,
@@ -78,11 +80,11 @@ def tokenization(example):
         return_overflowing_tokens=args.return_overflowing_tokens,
         padding='max_length' if args.padding else False,
         )
-
-dataset = dataset.map(tokenization,
+#TODO (low prio):
+# find a solution to keep id and metadata columns when returning overflowing tokens
+dataset = dataset.map(_tokenization,
                  batched=True,
-                 remove_columns=dataset.column_names,
-                 #removing columns necessary if returning overflowing tokens, useful in any case
+                 remove_columns=dataset.column_names if args.return_overflowing_tokens else None,
                  )
 #input_ids, attention_mask, (overflow_to_sample_mapping)
 
@@ -111,9 +113,11 @@ print(tokenizer.decode(dataset[0]['input_ids']))
 if not os.path.exists(args.datadir):
     os.mkdir(args.datadir)
 if args.save_to:
-    save_to = args.save_to
+    SAVE_TO = args.save_to
 else:
-    save_to = f"{args.dataset.split('/')[-1]}-{"-".join(args.tokenizer.split('/')[-1].split('-')[:2])}"
+    dataset_short = args.dataset.split('/')[-1]
+    tokenizer_short = "-".join(args.tokenizer.split('/')[-1].split('-')[:2])
+    SAVE_TO = f"{dataset_short}-{tokenizer_short}"
 dataset.save_to_disk(
-    f"{args.datadir}/{save_to}"
+    f"{args.datadir}/{SAVE_TO}"
     )
