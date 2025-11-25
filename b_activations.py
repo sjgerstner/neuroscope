@@ -185,7 +185,7 @@ def get_all_neuron_acts_on_dataset(
         for hook in HOOKS_TO_CACHE
     ]
 
-    if not os.path.exists(f'{path}/activation_cache'):
+    if args.store_cache and not os.path.exists(f'{path}/activation_cache'):
         os.mkdir(f'{path}/activation_cache')
     previous_batch_size = 0
     if os.path.exists(f'{path}/activation_cache/batch_size.txt'):
@@ -193,7 +193,7 @@ def get_all_neuron_acts_on_dataset(
             previous_batch_size = int(f.read())
     #print(previous_batch_size, args.batch_size)
     batch_size_unchanged = previous_batch_size==args.batch_size
-    if not batch_size_unchanged:
+    if args.store_cache and not batch_size_unchanged:
         with open(f'{path}/activation_cache/batch_size.txt', 'w', encoding='utf-8') as f:
             f.write(str(args.batch_size))
     for i, batch in tqdm(enumerate(batched_dataset)):
