@@ -147,7 +147,7 @@ for layer,neuron_list in enumerate(layer_neuron_list):
         )
         #visualisation
         print('>> creating html page...')
-        neuron_vis_dir = f'{VIS_PATH}/L{layer}/N{neuron}
+        neuron_vis_dir = f'{VIS_PATH}/L{layer}/N{neuron}'
         # We add some text to tell us what layer and neuron we're looking at
         heading = f"<h2>Layer: <b>{layer}</b>. Neuron Index: <b>{neuron}</b></h2>\n"
         HTML = HEAD_AND_TITLE + heading + neuron_vis_full(

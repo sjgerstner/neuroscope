@@ -5,7 +5,7 @@
       1️⃣  Document metadata
        ------------------------------------------ -->
   <meta charset="UTF-8">
-  <title>Circuit visualisations (lazy)</title>
+  <title>GLUscope</title>
 
   <!-- --------------------------------------------------------------
       2️⃣  Minimal styling – just enough to give each viz a place
@@ -13,11 +13,16 @@
   <style>
     /* Every visualisation gets its own box.
        The height prevents the page from collapsing before the viz loads. */
+    /* Default – no forced height */
     .circuit-viz {
-      min-height: 300px;          /* reserve space while we fetch data   */
-   margin: 2rem 0;             /* vertical breathing room       */
-   border: 1px solid #ddd;     /* optional – makes the area obvious   */
-      padding: 0.5rem;
+      box-sizing: border-box;
+      /*margin: 2rem 0;           /* vertical breathing room       */
+      /*border: 1px solid #ddd;     /* optional – makes the area obvious   */
+      /*padding: 0.5rem;*/
+    }
+    /* Applied while we’re waiting for the data */
+    .circuit-viz.loading {
+      min-height: 300px;          /* reserve space */
     }
   </style>
 </head>
@@ -158,115 +163,115 @@
 </tr>
 </table>
 <h2>Prototypical activations for case gate+_in+</h2>
-<h3>Extreme hook_post activations
+<h3>Extreme hook_post activations</h3>
 <h4>Example 0</h4>
-        <div class="circuit-viz" data-url=./gate+_in+_hook_post_example_0.json>
+        <div class="circuit-viz" data-url="./gate+_in+_hook_post_example_0.json">
         </div>
 <h4>Example 1</h4>
-        <div class="circuit-viz" data-url=./gate+_in+_hook_post_example_1.json>
+        <div class="circuit-viz" data-url="./gate+_in+_hook_post_example_1.json">
         </div>
 <hr>
-<h3>Extreme hook_pre_linear activations
+<h3>Extreme hook_pre_linear activations</h3>
 <h4>Example 0</h4>
-        <div class="circuit-viz" data-url=./gate+_in+_hook_pre_linear_example_0.json>
+        <div class="circuit-viz" data-url="./gate+_in+_hook_pre_linear_example_0.json">
         </div>
 <h4>Example 1</h4>
-        <div class="circuit-viz" data-url=./gate+_in+_hook_pre_linear_example_1.json>
+        <div class="circuit-viz" data-url="./gate+_in+_hook_pre_linear_example_1.json">
         </div>
 <hr>
-<h3>Extreme hook_pre activations
+<h3>Extreme hook_pre activations</h3>
 <h4>Example 0</h4>
-        <div class="circuit-viz" data-url=./gate+_in+_hook_pre_example_0.json>
+        <div class="circuit-viz" data-url="./gate+_in+_hook_pre_example_0.json">
         </div>
 <h4>Example 1</h4>
-        <div class="circuit-viz" data-url=./gate+_in+_hook_pre_example_1.json>
+        <div class="circuit-viz" data-url="./gate+_in+_hook_pre_example_1.json">
         </div>
 <hr>
 <hr>
 <hr>
 <h2>Prototypical activations for case gate+_in-</h2>
-<h3>Extreme hook_post activations
+<h3>Extreme hook_post activations</h3>
 <h4>Example 0</h4>
-        <div class="circuit-viz" data-url=./gate+_in-_hook_post_example_0.json>
+        <div class="circuit-viz" data-url="./gate+_in-_hook_post_example_0.json">
         </div>
 <hr>
-<h3>Extreme hook_pre_linear activations
+<h3>Extreme hook_pre_linear activations</h3>
 <h4>Example 0</h4>
-        <div class="circuit-viz" data-url=./gate+_in-_hook_pre_linear_example_0.json>
+        <div class="circuit-viz" data-url="./gate+_in-_hook_pre_linear_example_0.json">
         </div>
 <hr>
-<h3>Extreme hook_pre activations
+<h3>Extreme hook_pre activations</h3>
 <h4>Example 0</h4>
-        <div class="circuit-viz" data-url=./gate+_in-_hook_pre_example_0.json>
+        <div class="circuit-viz" data-url="./gate+_in-_hook_pre_example_0.json">
         </div>
 <hr>
 <hr>
 <hr>
 <h2>Prototypical activations for case gate-_in+</h2>
-<h3>Extreme hook_post activations
+<h3>Extreme hook_post activations</h3>
 <h4>Example 0</h4>
-        <div class="circuit-viz" data-url=./gate-_in+_hook_post_example_0.json>
+        <div class="circuit-viz" data-url="./gate-_in+_hook_post_example_0.json">
         </div>
 <h4>Example 1</h4>
-        <div class="circuit-viz" data-url=./gate-_in+_hook_post_example_1.json>
+        <div class="circuit-viz" data-url="./gate-_in+_hook_post_example_1.json">
         </div>
 <hr>
-<h3>Extreme hook_pre_linear activations
+<h3>Extreme hook_pre_linear activations</h3>
 <h4>Example 0</h4>
-        <div class="circuit-viz" data-url=./gate-_in+_hook_pre_linear_example_0.json>
+        <div class="circuit-viz" data-url="./gate-_in+_hook_pre_linear_example_0.json">
         </div>
 <h4>Example 1</h4>
-        <div class="circuit-viz" data-url=./gate-_in+_hook_pre_linear_example_1.json>
+        <div class="circuit-viz" data-url="./gate-_in+_hook_pre_linear_example_1.json">
         </div>
 <hr>
-<h3>Extreme hook_pre activations
+<h3>Extreme hook_pre activations</h3>
 <h4>Example 0</h4>
-        <div class="circuit-viz" data-url=./gate-_in+_hook_pre_example_0.json>
+        <div class="circuit-viz" data-url="./gate-_in+_hook_pre_example_0.json">
         </div>
 <h4>Example 1</h4>
-        <div class="circuit-viz" data-url=./gate-_in+_hook_pre_example_1.json>
+        <div class="circuit-viz" data-url="./gate-_in+_hook_pre_example_1.json">
         </div>
 <hr>
-<h3>Extreme swish activations
+<h3>Extreme swish activations</h3>
 <h4>Example 0</h4>
-        <div class="circuit-viz" data-url=./gate-_in+_swish_example_0.json>
+        <div class="circuit-viz" data-url="./gate-_in+_swish_example_0.json">
         </div>
 <h4>Example 1</h4>
-        <div class="circuit-viz" data-url=./gate-_in+_swish_example_1.json>
+        <div class="circuit-viz" data-url="./gate-_in+_swish_example_1.json">
         </div>
 <hr>
 <hr>
 <h2>Prototypical activations for case gate-_in-</h2>
-<h3>Extreme hook_post activations
+<h3>Extreme hook_post activations</h3>
 <h4>Example 0</h4>
-        <div class="circuit-viz" data-url=./gate-_in-_hook_post_example_0.json>
+        <div class="circuit-viz" data-url="./gate-_in-_hook_post_example_0.json">
         </div>
 <h4>Example 1</h4>
-        <div class="circuit-viz" data-url=./gate-_in-_hook_post_example_1.json>
+        <div class="circuit-viz" data-url="./gate-_in-_hook_post_example_1.json">
         </div>
 <hr>
-<h3>Extreme hook_pre_linear activations
+<h3>Extreme hook_pre_linear activations</h3>
 <h4>Example 0</h4>
-        <div class="circuit-viz" data-url=./gate-_in-_hook_pre_linear_example_0.json>
+        <div class="circuit-viz" data-url="./gate-_in-_hook_pre_linear_example_0.json">
         </div>
 <h4>Example 1</h4>
-        <div class="circuit-viz" data-url=./gate-_in-_hook_pre_linear_example_1.json>
+        <div class="circuit-viz" data-url="./gate-_in-_hook_pre_linear_example_1.json">
         </div>
 <hr>
-<h3>Extreme hook_pre activations
+<h3>Extreme hook_pre activations</h3>
 <h4>Example 0</h4>
-        <div class="circuit-viz" data-url=./gate-_in-_hook_pre_example_0.json>
+        <div class="circuit-viz" data-url="./gate-_in-_hook_pre_example_0.json">
         </div>
 <h4>Example 1</h4>
-        <div class="circuit-viz" data-url=./gate-_in-_hook_pre_example_1.json>
+        <div class="circuit-viz" data-url="./gate-_in-_hook_pre_example_1.json">
         </div>
 <hr>
-<h3>Extreme swish activations
+<h3>Extreme swish activations</h3>
 <h4>Example 0</h4>
-        <div class="circuit-viz" data-url=./gate-_in-_swish_example_0.json>
+        <div class="circuit-viz" data-url="./gate-_in-_swish_example_0.json">
         </div>
 <h4>Example 1</h4>
-        <div class="circuit-viz" data-url=./gate-_in-_swish_example_1.json>
+        <div class="circuit-viz" data-url="./gate-_in-_swish_example_1.json">
         </div>
 <hr>
 <hr><script type="module">
@@ -280,21 +285,20 @@
        4.2️⃣  Helper: fetch the JSON and call the renderer
        ------------------------------------------------------------- */
     async function loadAndRender(containerEl) {
-      // ① Grab the URL we stored in the data‑url attribute
-      const url = containerEl.dataset.url;
-
-      // ② Fetch the JSON file (browser does gzip/Brotli automatically)
-      const response = await fetch(url);
-      const payload = await response.json();   // → {tokens, values, labels}
-
-      // ③ Give the container a stable id (required by circuitsvis)
-      if (!containerEl.id) {
-        containerEl.id = "viz-" + Math.random().toString(36).slice(2);
-      }
-
-      // ④ Finally draw the heat‑map onto a <canvas>
-      //    CanvasTokensMulti is much faster than the default span‑based view.
-      render(containerEl.id, ColoredTokensMulti, payload);
+      containerEl.classList.add('loading');   // show placeholder height
+      fetch(containerEl.dataset.url)      // ① Grab the URL we stored in the data‑url attribute
+      .then(r => r.json())      // ② Fetch the JSON file (browser does gzip/Brotli automatically)
+      // → {tokens, values, labels}
+      .then(payload => {
+        // ③ Give the container a stable id (required by circuitsvis)
+        if (!containerEl.id) {
+          containerEl.id = "viz-" + Math.random().toString(36).slice(2);
+        }
+        // ④ Finally draw the heat‑map onto a <canvas>
+        //    CanvasTokensMulti is much faster than the default span‑based view.
+        render(containerEl.id, ColoredTokensMulti, payload);
+        })
+        .finally(() => containerEl.classList.remove('loading')); // remove placeholder
     }
 
     /* -----------------------------------------------------
@@ -326,5 +330,6 @@
     });
 
   </script>
+
 </body>
 </html>

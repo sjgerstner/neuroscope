@@ -9,21 +9,20 @@
        4.2️⃣  Helper: fetch the JSON and call the renderer
        ------------------------------------------------------------- */
     async function loadAndRender(containerEl) {
-      // ① Grab the URL we stored in the data‑url attribute
-      const url = containerEl.dataset.url;
-
-      // ② Fetch the JSON file (browser does gzip/Brotli automatically)
-      const response = await fetch(url);
-      const payload = await response.json();   // → {tokens, values, labels}
-
-      // ③ Give the container a stable id (required by circuitsvis)
-      if (!containerEl.id) {
-        containerEl.id = "viz-" + Math.random().toString(36).slice(2);
-      }
-
-      // ④ Finally draw the heat‑map onto a <canvas>
-      //    CanvasTokensMulti is much faster than the default span‑based view.
-      render(containerEl.id, ColoredTokensMulti, payload);
+      containerEl.classList.add('loading');   // show placeholder height
+      fetch(containerEl.dataset.url)      // ① Grab the URL we stored in the data‑url attribute
+      .then(r => r.json())      // ② Fetch the JSON file (browser does gzip/Brotli automatically)
+      // → {tokens, values, labels}
+      .then(payload => {
+        // ③ Give the container a stable id (required by circuitsvis)
+        if (!containerEl.id) {
+          containerEl.id = "viz-" + Math.random().toString(36).slice(2);
+        }
+        // ④ Finally draw the heat‑map onto a <canvas>
+        //    CanvasTokensMulti is much faster than the default span‑based view.
+        render(containerEl.id, ColoredTokensMulti, payload);
+        })
+        .finally(() => containerEl.classList.remove('loading')); // remove placeholder
     }
 
     /* -----------------------------------------------------
