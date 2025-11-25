@@ -74,10 +74,11 @@ def _get_all_neuron_acts(model, ids_and_mask, names_filter, max_seq_len=1024):
     batch_size = len(ids_and_mask['input_ids'])
     seq_len = max(len(ids) for ids in ids_and_mask['input_ids'])
 
-    _logits, raw_cache = model.run_with_cache(
+    raw_cache = model.run_with_cache(
         ids_and_mask['input_ids'],
         attention_mask=ids_and_mask['attention_mask'],
-        names_filter=names_filter
+        names_filter=names_filter,
+        return_type=None,
         )
     #ActivationCache
     # with keys 'blocks.layer.mlp.hook_post' etc

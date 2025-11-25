@@ -6,29 +6,14 @@ from tqdm import tqdm
 import torch
 import einops
 
+from datasets import Dataset
+
 from utils import ModelWrapper, detect_cases, get_act_type_keys, adapt_activations
+from b_activations import _get_reduce
 
-def recompute_acts(
+def _recompute_from_cache(
     model:ModelWrapper, layer:int, neuron:int, indices_within_dataset:torch.Tensor, save_path:str, key:tuple[str,str,str]
-    ) -> dict[str,torch.Tensor|list[str]]:
-    """Recompute activations for the given neuron and dataset indices, using cached residual stream activations.
-
-    Args:
-        model (ModelWrapper): the model
-        layer (int): layer index
-        neuron (int): neuron index within layer
-        indices_within_dataset (torch.Tensor[int]): indices of relevant text examples within the dataset
-        save_path (str): path where cached residual stream activations are stored.
-            Specifically, this should be the parent directory of "activation_cache".
-
-    Returns:
-        torch.Tensor[float]:
-            the first dimension corresponds to the different VALUES_TO_SUMMARISE,
-            then we have batch and position
-    """
-    act_type_keys = get_act_type_keys(key)
-    if not act_type_keys:
-        return {}
+) -> tuple[dict[str,torch.Tensor], torch.Tensor]:
     with open(f"{save_path}/activation_cache/batch_size.txt", 'r', encoding='utf-8') as f:
         batch_size = int(f.read())
     ln_cache=[]
@@ -65,7 +50,82 @@ def recompute_acts(
         'sample pos d_model, d_model -> sample pos'
     )
     intermediate['hook_post'] = intermediate['swish']*intermediate['hook_pre_linear']
+    return intermediate, positions
 
+def _recompute_from_scratch(
+    model:ModelWrapper, layer:int, neuron:int, indices_within_dataset:torch.Tensor, dataset:Dataset,
+) -> dict[str,torch.Tensor]:
+    input_ids = torch.stack([
+        dataset[int(index_within_dataset)]['input_ids']
+        for index_within_dataset in indices_within_dataset
+    ])
+    attention_mask = torch.stack([
+        dataset[int(index_within_dataset)]['attention_mask']
+        for index_within_dataset in indices_within_dataset
+    ])
+    names_filter = [
+        f"blocks.{layer}.{hook}"
+        for hook in ['hook_pre', 'hook_pre_linear', 'hook_post']
+    ]
+    raw_cache = model.run_with_cache(
+        input_ids,
+        attention_mask=attention_mask,
+        names_filter=names_filter,
+        return_type=None,
+        stop_at_layer=layer+1,
+    )
+    intermediate = {
+        hook: raw_cache[f"blocks.{layer}.{hook}"][...,neuron]
+        for hook in ['hook_pre', 'hook_pre_linear', 'hook_post']
+    }
+    intermediate['swish'] = model.actfn(intermediate['hook_pre'])
+
+    return intermediate
+
+def recompute_acts(
+    model:ModelWrapper,
+    layer:int, neuron:int,
+    dataset:Dataset,
+    indices_within_dataset:torch.Tensor,
+    save_path:str,
+    key:tuple[str,str,str],
+    use_cache:bool=True,
+    ) -> dict[str,torch.Tensor|list[str]]:
+    """Recompute activations for the given neuron and dataset indices, using cached residual stream activations.
+
+    Args:
+        model (ModelWrapper): the model
+        layer (int): layer index
+        neuron (int): neuron index within layer
+        indices_within_dataset (torch.Tensor[int]): indices of relevant text examples within the dataset
+        save_path (str): path where cached residual stream activations are stored.
+            Specifically, this should be the parent directory of "activation_cache".
+
+    Returns:
+        torch.Tensor[float]:
+            the first dimension corresponds to the different VALUES_TO_SUMMARISE,
+            then we have batch and position
+    """
+    act_type_keys = get_act_type_keys(key)
+    if not act_type_keys:
+        return {}
+    if use_cache:
+        intermediate, positions = _recompute_from_cache(
+            model=model,
+            layer=layer,
+            neuron=neuron,
+            indices_within_dataset=indices_within_dataset,
+            save_path=save_path,
+            key=key,
+        )
+    else:
+        intermediate = _recompute_from_scratch(
+            model=model,
+            layer=layer,
+            neuron=neuron,
+            indices_within_dataset=indices_within_dataset,
+            dataset=dataset,
+        )
     bins = detect_cases(
         gate_values=intermediate['hook_pre'],
         in_values=intermediate['hook_pre_linear'],
@@ -74,16 +134,14 @@ def recompute_acts(
     )
     for atk in act_type_keys:
         if atk not in intermediate:
-            #try:
             intermediate[atk] = bins[key[0]] * intermediate['_'.join(atk.split('_')[2:])]
-            # except RuntimeError as e:
-            #     print(key, atk, bins[key[0]].device, intermediate['_'.join(atk.split('_')[2:])].device)
-            #     raise e
-            #hack: convert -0.0 to a small negative value
             if torch.all(intermediate[atk]<=0):
                 intermediate[atk][intermediate[atk]==-0.0]=-1e-7
 
     recomputed_acts = torch.stack([intermediate[hook] for hook in act_type_keys], dim=-1)
+
+    if not use_cache:
+        positions = torch.argmax(torch.abs(intermediate[f"{key[0]}_{key[1]}"]), dim=1)
 
     return {'all_acts':recomputed_acts, 'position_indices':positions, 'act_type_keys':act_type_keys}
 
@@ -105,6 +163,7 @@ def recompute_acts_if_necessary(args, summary_dict, maxmin_keys, neuron_dir, sin
                 **kwargs,
                 key=case_key,
                 indices_within_dataset=summary_dict[case_key]['indices'][...,kwargs['layer'],kwargs['neuron']],
+                use_cache=args.use_cache,
             )
             for case_key in tqdm(maxmin_keys)}
         torch.save(activation_data, activations_file)
