@@ -218,7 +218,8 @@ def get_all_neuron_acts_on_dataset(
                 intermediate = _move_to(pickle.load(f), device='cuda')
         else:
             intermediate = _get_all_neuron_acts(model, batch, names_filter, dataset.max_seq_len)
-            torch.save(intermediate, f"{batch_file}.pt")
+            if args.store_cache:
+                torch.save(intermediate, f"{batch_file}.pt")
         del intermediate['ln_cache']
         if i==0:
             out_dict={}
