@@ -313,6 +313,7 @@ if __name__=="__main__":
     parser.add_argument('--results_dir', default='results')
     parser.add_argument('--save_to', default=None)
     parser.add_argument('--test', action='store_true')
+    parser.add_argument('--store_cache', type=bool, default=True)
     args = parser.parse_args()
 
     if args.save_to:
