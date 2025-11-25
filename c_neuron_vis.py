@@ -44,7 +44,7 @@ def _vis_examples(activation_data, dataset, tokenizer, neuron_dir):
         for act_type in VALUES_TO_SUMMARISE:
             key = (case, act_type, 'max')
             if key in activation_data and 'all_acts' in activation_data[key] and activation_data[key]['values'][0]!=0:
-                htmls.append(f'<h3>Extreme {act_type} activations')
+                htmls.append(f'<h3>Extreme {act_type} activations</h3>')
                 for i in range(activation_data[key]['indices'].shape[0]):
                     first_acts=activation_data[key]['all_acts'][i,:,0]#sample pos act_type
                     #ignore samples in which no token satisfies the condition:
