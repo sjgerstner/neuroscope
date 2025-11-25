@@ -21,8 +21,8 @@
         // ④ Finally draw the heat‑map onto a <canvas>
         //    CanvasTokensMulti is much faster than the default span‑based view.
         render(containerEl.id, ColoredTokensMulti, payload);
-        })
-        .finally(() => containerEl.classList.remove('loading')); // remove placeholder
+      })
+      .finally(() => containerEl.classList.remove('loading')); // remove placeholder
     }
 
     /* -----------------------------------------------------
