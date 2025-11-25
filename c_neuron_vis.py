@@ -7,7 +7,7 @@ from torch import allclose, zeros_like
 from utils import CASES, get_act_type_keys
 from b_activations import VALUES_TO_SUMMARISE
 
-def _vis_example(i, indices, acts, dataset, tokenizer, key, stop_tokens=None):
+def _vis_example(i, indices, acts, dataset, tokenizer, key, neuron_dir, stop_tokens=None):
     index = int(indices[i])
     #print(dataset[index]['input_ids'])#tensor of ints
     tokens = tokenizer.batch_decode(#or convert_ids_to_tokens
@@ -18,13 +18,13 @@ def _vis_example(i, indices, acts, dataset, tokenizer, key, stop_tokens=None):
         #TODO option to show full example
         tokens = tokens[:stop_tokens[i]]
     relevant_acts = acts[i,:len(tokens),:]#batch, pos, act_type
-    data_url = f"./{"_".join(key[:2])}_example_{i}.json"
+    data_url = f"{"_".join(key[:2])}_example_{i}.json"
     data_dict = {
         "tokens": tokens,
-        "values": relevant_acts,#TODO to list?
+        "values": relevant_acts.tolist(),
         "labels": get_act_type_keys(key),
     }
-    with open(data_url, "w", encoding="utf-8") as f:
+    with open(f"{neuron_dir}/{data_url}", "w", encoding="utf-8") as f:
         dump(data_dict, f)
     #TODO source of dataset example
         # colored_tokens_multi(
@@ -33,10 +33,10 @@ def _vis_example(i, indices, acts, dataset, tokenizer, key, stop_tokens=None):
         #     labels=get_act_type_keys(key),
         # )
     return f"""<h4>Example {i}</h4>
-        <div class="circuit-viz" data-url={data_url}>
+        <div class="circuit-viz" data-url="./{data_url}">
         </div>"""
 
-def _vis_examples(activation_data, dataset, tokenizer):
+def _vis_examples(activation_data, dataset, tokenizer, neuron_dir):
     htmls = []
     #TODO possibility to toggle the lists
     for case in CASES:
@@ -59,6 +59,7 @@ def _vis_examples(activation_data, dataset, tokenizer):
                             dataset=dataset,
                             tokenizer=tokenizer,
                             key=key,
+                            neuron_dir=neuron_dir
                             )
                     )
             htmls.append('<hr>')
@@ -106,7 +107,7 @@ def _vis_stats(activation_data, actfn):
     htmls.append('</table>')
     return "\n".join(htmls)
 
-def neuron_vis_full(activation_data, dataset, model):
+def neuron_vis_full(activation_data, dataset, model, neuron_dir):
     """Full neuron visualisation for a given neuron.
     Args:
         neuron_data (dict): contains summary statistics and data on max/min activations
@@ -123,6 +124,7 @@ def neuron_vis_full(activation_data, dataset, model):
         activation_data=activation_data, actfn=model.actfn
     ))
     htmls.append(_vis_examples(
-        activation_data=activation_data, dataset=dataset, tokenizer=model.tokenizer
+        activation_data=activation_data, dataset=dataset, tokenizer=model.tokenizer,
+        neuron_dir=neuron_dir,
     ))
     return "\n".join(htmls)

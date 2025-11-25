@@ -21,7 +21,7 @@ parser.add_argument(
 )
 parser.add_argument('--datasets_dir', default='datasets')
 parser.add_argument('--results_dir', default='results')
-parser.add_argument('--site_dir', default='website')
+parser.add_argument('--site_dir', default='docs')
 parser.add_argument('--save_to', default=None)
 parser.add_argument('--neurons',
     nargs='+',
@@ -46,7 +46,7 @@ VIS_PATH = f"{args.site_dir}/{RUN_CODE}"
 with open("html_boilerplate/head.html", "r", encoding="utf-8") as f:
     HEAD_AND_TITLE = f.read()+f"\n<body>\n<h1>Model: <b>{args.model}</b></h1>\n"
 with open("html_boilerplate/script.html", "r", encoding="utf-8") as f:
-    TAIL = f.read()+"\n</body>\n</html>"
+    TAIL = f.read()+"\n</body>\n</html>\n"
 
 torch.set_grad_enabled(False)
 
@@ -126,16 +126,16 @@ for layer,neuron_list in enumerate(layer_neuron_list):
         os.mkdir(layer_dir)
     for neuron in neuron_list:
         print(f'> processing neuron {neuron}...')
-        neuron_dir = f"{layer_dir}/N{neuron}"
-        if not os.path.exists(neuron_dir):
-            os.mkdir(neuron_dir)
+        neuron_vis_dir = f"{layer_dir}/N{neuron}"
+        if not os.path.exists(neuron_vis_dir):
+            os.mkdir(neuron_vis_dir)
         #recomputing neuron activations on max and min examples
         print('>> gathering/recomputing data from cache...')
         activation_data = recompute.recompute_acts_if_necessary(
             args=args,
             summary_dict=summary_dict,
             maxmin_keys=maxmin_keys,
-            neuron_dir=neuron_dir,
+            neuron_dir=neuron_vis_dir,
             single_sign_to_adapt=int(sign_to_adapt[layer,neuron]),
             model=model, layer=layer, neuron=neuron,
             save_path=SAVE_PATH,
@@ -147,13 +147,15 @@ for layer,neuron_list in enumerate(layer_neuron_list):
         )
         #visualisation
         print('>> creating html page...')
+        neuron_vis_dir = f'{VIS_PATH}/L{layer}/N{neuron}
         # We add some text to tell us what layer and neuron we're looking at
         heading = f"<h2>Layer: <b>{layer}</b>. Neuron Index: <b>{neuron}</b></h2>\n"
         HTML = HEAD_AND_TITLE + heading + neuron_vis_full(
                 activation_data=activation_data,
                 dataset=dataset,
                 model=model,
+                neuron_dir=neuron_vis_dir,
         ) + TAIL
-        with open(f'{VIS_PATH}/L{layer}/N{neuron}/vis.html', 'w', encoding="utf-8") as f:
+        with open(f'{neuron_vis_dir}/vis.html', 'w', encoding="utf-8") as f:
             f.write(HTML)
 print('done!')
