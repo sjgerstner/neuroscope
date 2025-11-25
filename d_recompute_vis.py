@@ -43,7 +43,10 @@ else:
 
 SAVE_PATH = f"{args.results_dir}/{RUN_CODE}"
 VIS_PATH = f"{args.site_dir}/{RUN_CODE}"
-TITLE = f"<h1>Model: <b>{args.model}</b></h1>\n"
+with open("html_boilerplate/head.html", "r", encoding="utf-8") as f:
+    HEAD_AND_TITLE = f.read()+f"\n<body>\n<h1>Model: <b>{args.model}</b></h1>\n"
+with open("html_boilerplate/script.html", "r", encoding="utf-8") as f:
+    TAIL = f.read()+"\n</body>\n</html>"
 
 torch.set_grad_enabled(False)
 
@@ -146,11 +149,11 @@ for layer,neuron_list in enumerate(layer_neuron_list):
         print('>> creating html page...')
         # We add some text to tell us what layer and neuron we're looking at
         heading = f"<h2>Layer: <b>{layer}</b>. Neuron Index: <b>{neuron}</b></h2>\n"
-        HTML = TITLE + heading + neuron_vis_full(
+        HTML = HEAD_AND_TITLE + heading + neuron_vis_full(
                 activation_data=activation_data,
                 dataset=dataset,
                 model=model,
-        )
+        ) + TAIL
         with open(f'{VIS_PATH}/L{layer}/N{neuron}/vis.html', 'w', encoding="utf-8") as f:
             f.write(HTML)
 print('done!')
