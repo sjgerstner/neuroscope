@@ -188,7 +188,7 @@ def get_all_neuron_acts_on_dataset(
     if not os.path.exists(f'{path}/activation_cache'):
         os.mkdir(f'{path}/activation_cache')
     previous_batch_size = 0
-    if False:#os.path.exists(f'{path}/activation_cache/batch_size.txt'):
+    if os.path.exists(f'{path}/activation_cache/batch_size.txt'):
         with open(f'{path}/activation_cache/batch_size.txt', 'r', encoding='utf-8') as f:
             previous_batch_size = int(f.read())
     #print(previous_batch_size, args.batch_size)
@@ -346,7 +346,7 @@ if __name__=="__main__":
 
     print('computing activations...')
     SUMMARY_FILE = f'{SAVE_PATH}/summary{"_refactored" if args.refactor_glu else""}'
-    if True:# not os.path.exists(f'{SUMMARY_FILE}.pickle') and not os.path.exists(f'{SUMMARY_FILE}.pt'):
+    if not os.path.exists(f'{SUMMARY_FILE}.pickle') and not os.path.exists(f'{SUMMARY_FILE}.pt'):
         out_dict = get_all_neuron_acts_on_dataset(
             args=args,
             model=model,
