@@ -8,6 +8,7 @@ results/7B_new/activation_cache
 results/OLMo-1B-hf_dolma-small
 results/test
 website/test
+docs/test
 testing-react
 .vscode
 
