@@ -4,11 +4,11 @@ The code was written with batch size 1 in mind.
 Other batch sizes will almost certainly lead to bugs.
 """
 
-#TODO enable other batch sizes
 #TODO (also other files) pathlib
 
 
 from argparse import ArgumentParser
+import json
 import os
 import pickle
 from tqdm import tqdm
@@ -326,6 +326,16 @@ if __name__=="__main__":
     SAVE_PATH = f"{args.results_dir}/{RUN_CODE}"
     if not os.path.exists(SAVE_PATH):
         os.mkdir(SAVE_PATH)
+    with open("docs/pages.json", "w+", encoding="utf-8") as f:
+        page_list = json.load(f)
+        model_present = False
+        for d in page_list:
+            if d["title"]==RUN_CODE:
+                model_present=True
+                break
+        if not model_present:
+            page_list.append({"title": RUN_CODE, "children":[]})
+            json.dump(page_list, f)
 
     torch.set_grad_enabled(False)
 

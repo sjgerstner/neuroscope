@@ -1,4 +1,5 @@
 from argparse import ArgumentParser
+import json
 import os
 import pickle
 
@@ -124,11 +125,35 @@ for layer,neuron_list in enumerate(layer_neuron_list):
     layer_dir = f"{SAVE_PATH}/L{layer}"
     if not os.path.exists(layer_dir):
         os.mkdir(layer_dir)
+    
     for neuron in neuron_list:
         print(f'> processing neuron {neuron}...')
         neuron_vis_dir = f"{layer_dir}/N{neuron}"
         if not os.path.exists(neuron_vis_dir):
             os.mkdir(neuron_vis_dir)
+        with open("docs/pages.json", "w+", encoding="utf-8") as f:
+            page_list = json.load(f)
+            for model_dict in page_list:
+                if model_dict["title"]==RUN_CODE:
+                    layer_list = model_dict["children"]
+                    layer_present=False
+                    for layer_dict in layer_list:#TODO sort
+                        if layer_dict["title"]==f"L{layer}":
+                            layer_present=True
+                            break
+                    if not layer_present:
+                        layer_list.append({"title": f"L{layer}", "children":[]})
+                        layer_dict=layer_list[-1]#TODO
+                    neuron_list = layer_dict["children"]
+                    neuron_present=False
+                    for neuron_dict in neuron_list:
+                        if neuron_dict["title"]==f"N{neuron}":
+                            neuron_present=True
+                            break
+                    if not neuron_present:
+                        neuron_list.append({"title": f"N{neuron}", "url": f"{RUN_CODE}/L{layer}/N{neuron}/vis.html"})
+                    json.dump(page_list, f)
+                    break
         #recomputing neuron activations on max and min examples
         print('>> gathering/recomputing data from cache...')
         activation_data = recompute.recompute_acts_if_necessary(
