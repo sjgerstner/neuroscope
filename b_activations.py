@@ -74,10 +74,11 @@ def _get_all_neuron_acts(model, ids_and_mask, names_filter, max_seq_len=1024):
     batch_size = len(ids_and_mask['input_ids'])
     seq_len = max(len(ids) for ids in ids_and_mask['input_ids'])
 
-    _logits, raw_cache = model.run_with_cache(
+    raw_cache = model.run_with_cache(
         ids_and_mask['input_ids'],
         attention_mask=ids_and_mask['attention_mask'],
-        names_filter=names_filter
+        names_filter=names_filter,
+        return_type=None,
         )
     #ActivationCache
     # with keys 'blocks.layer.mlp.hook_post' etc
@@ -185,7 +186,7 @@ def get_all_neuron_acts_on_dataset(
         for hook in HOOKS_TO_CACHE
     ]
 
-    if not os.path.exists(f'{path}/activation_cache'):
+    if args.store_cache and not os.path.exists(f'{path}/activation_cache'):
         os.mkdir(f'{path}/activation_cache')
     previous_batch_size = 0
     if os.path.exists(f'{path}/activation_cache/batch_size.txt'):
@@ -193,7 +194,7 @@ def get_all_neuron_acts_on_dataset(
             previous_batch_size = int(f.read())
     #print(previous_batch_size, args.batch_size)
     batch_size_unchanged = previous_batch_size==args.batch_size
-    if not batch_size_unchanged:
+    if args.store_cache and not batch_size_unchanged:
         with open(f'{path}/activation_cache/batch_size.txt', 'w', encoding='utf-8') as f:
             f.write(str(args.batch_size))
     for i, batch in tqdm(enumerate(batched_dataset)):
@@ -218,7 +219,8 @@ def get_all_neuron_acts_on_dataset(
                 intermediate = _move_to(pickle.load(f), device='cuda')
         else:
             intermediate = _get_all_neuron_acts(model, batch, names_filter, dataset.max_seq_len)
-            torch.save(intermediate, f"{batch_file}.pt")
+            if args.store_cache:
+                torch.save(intermediate, f"{batch_file}.pt")
         del intermediate['ln_cache']
         if i==0:
             out_dict={}
@@ -313,6 +315,7 @@ if __name__=="__main__":
     parser.add_argument('--results_dir', default='results')
     parser.add_argument('--save_to', default=None)
     parser.add_argument('--test', action='store_true')
+    parser.add_argument('--store_cache', type=bool, default=True)
     args = parser.parse_args()
 
     if args.save_to:

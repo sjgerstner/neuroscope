@@ -24,6 +24,7 @@ parser.add_argument('--datasets_dir', default='datasets')
 parser.add_argument('--results_dir', default='results')
 parser.add_argument('--site_dir', default='docs')
 parser.add_argument('--save_to', default=None)
+parser.add_argument('--use_cache', type=bool, default=True)
 parser.add_argument('--neurons',
     nargs='+',
     default=[],
@@ -166,6 +167,7 @@ for layer,neuron_list in enumerate(layer_neuron_list):
             single_sign_to_adapt=int(sign_to_adapt[layer,neuron]),
             model=model, layer=layer, neuron=neuron,
             save_path=SAVE_PATH,
+            dataset=dataset,
         )
         activation_data = recompute.expand_with_summary(
             activation_data=activation_data,
