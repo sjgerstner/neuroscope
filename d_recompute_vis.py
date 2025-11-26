@@ -137,13 +137,14 @@ for layer,neuron_list in enumerate(layer_neuron_list):
                 if model_dict["title"]==RUN_CODE:
                     layer_list = model_dict["children"]
                     layer_present=False
-                    for layer_dict in layer_list:#TODO sort
+                    for layer_dict in layer_list:
                         if layer_dict["title"]==f"L{layer}":
                             layer_present=True
                             break
                     if not layer_present:
                         layer_list.append({"title": f"L{layer}", "children":[]})
-                        layer_dict=layer_list[-1]#TODO
+                        layer_dict=layer_list[-1]
+                        layer_list=sorted(layer_list, key=lambda d:int(d["title"][1:]))
                     neuron_list = layer_dict["children"]
                     neuron_present=False
                     for neuron_dict in neuron_list:
@@ -152,6 +153,7 @@ for layer,neuron_list in enumerate(layer_neuron_list):
                             break
                     if not neuron_present:
                         neuron_list.append({"title": f"N{neuron}", "url": f"{RUN_CODE}/L{layer}/N{neuron}/vis.html"})
+                        neuron_list=sorted(neuron_list, key=lambda d:int(d["title"][1:]))
                     json.dump(page_list, f)
                     break
         #recomputing neuron activations on max and min examples
