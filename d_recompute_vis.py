@@ -45,10 +45,10 @@ else:
 
 SAVE_PATH = f"{args.results_dir}/{RUN_CODE}"
 VIS_PATH = f"{args.site_dir}/{RUN_CODE}"
-with open("html_boilerplate/head.html", "r", encoding="utf-8") as f:
-    HEAD_AND_TITLE = f.read()+f"\n<body>\n<h1>Model: <b>{args.model}</b></h1>\n"
-with open("html_boilerplate/script.html", "r", encoding="utf-8") as f:
-    TAIL = f.read()+"\n</body>\n</html>\n"
+with open("html_boilerplate/head.html", "r", encoding="utf-8") as read_file:
+    HEAD_AND_TITLE = read_file.read()+f"\n<body>\n<h1>Model: <b>{args.model}</b></h1>\n"
+with open("html_boilerplate/script.html", "r", encoding="utf-8") as read_file:
+    TAIL = read_file.read()+"\n</body>\n</html>\n"
 
 torch.set_grad_enabled(False)
 
@@ -61,8 +61,8 @@ if os.path.exists(f"{MY_FILE}.pt"):
     summary_dict = torch.load(f"{MY_FILE}.pt")
 else:
     assert os.path.exists(f"{MY_FILE}.pickle")
-    with open(f"{MY_FILE}.pickle", 'rb') as f:
-        summary_dict = _move_to(pickle.load(f), 'cuda')
+    with open(f"{MY_FILE}.pickle", 'rb') as read_file:
+        summary_dict = _move_to(pickle.load(read_file), 'cuda')
 # if args.test:
 #     #print(f"summary_dict: {summary_dict.keys()}")
 #     for key,value in summary_dict.items():
@@ -132,31 +132,34 @@ for layer,neuron_list in enumerate(layer_neuron_list):
         neuron_vis_dir = f"{layer_dir}/N{neuron}"
         if not os.path.exists(neuron_vis_dir):
             os.mkdir(neuron_vis_dir)
-        with open("docs/pages.json", "w+", encoding="utf-8") as f:
-            page_list = json.load(f)
+        with open("docs/pages.json", "r", encoding="utf-8") as read_file:
+            added_page = False
+            page_list = json.load(read_file)
             for model_dict in page_list:
                 if model_dict["title"]==RUN_CODE:
-                    layer_list = model_dict["children"]
                     layer_present=False
-                    for layer_dict in layer_list:
+                    for layer_dict in model_dict["children"]:
                         if layer_dict["title"]==f"L{layer}":
                             layer_present=True
                             break
                     if not layer_present:
-                        layer_list.append({"title": f"L{layer}", "children":[]})
-                        layer_dict=layer_list[-1]
-                        layer_list=sorted(layer_list, key=lambda d:int(d["title"][1:]))
-                    neuron_list = layer_dict["children"]
+                        model_dict["children"].append({"title": f"L{layer}", "children":[]})
+                        layer_dict=model_dict["children"][-1]
+                        model_dict["children"]=sorted(model_dict["children"], key=lambda d:int(d["title"][1:]))
+                        added_page=True
                     neuron_present=False
-                    for neuron_dict in neuron_list:
+                    for neuron_dict in layer_dict["children"]:
                         if neuron_dict["title"]==f"N{neuron}":
                             neuron_present=True
                             break
                     if not neuron_present:
-                        neuron_list.append({"title": f"N{neuron}", "url": f"{RUN_CODE}/L{layer}/N{neuron}/vis.html"})
-                        neuron_list=sorted(neuron_list, key=lambda d:int(d["title"][1:]))
-                    json.dump(page_list, f)
+                        layer_dict["children"].append({"title": f"N{neuron}", "url": f"{RUN_CODE}/L{layer}/N{neuron}/vis.html"})
+                        layer_dict["children"]=sorted(layer_dict["children"], key=lambda d:int(d["title"][1:]))
+                        added_page=True
                     break
+        if added_page:
+            with open("docs/pages.json", "w", encoding="utf-8") as write_file:
+                json.dump(page_list, read_file, indent=4)
         #recomputing neuron activations on max and min examples
         print('>> gathering/recomputing data from cache...')
         activation_data = recompute.recompute_acts_if_necessary(
@@ -185,6 +188,6 @@ for layer,neuron_list in enumerate(layer_neuron_list):
                 model=model,
                 neuron_dir=neuron_vis_dir,
         ) + TAIL
-        with open(f'{neuron_vis_dir}/vis.html', 'w', encoding="utf-8") as f:
-            f.write(HTML)
+        with open(f'{neuron_vis_dir}/vis.html', 'w', encoding="utf-8") as read_file:
+            read_file.write(HTML)
 print('done!')
