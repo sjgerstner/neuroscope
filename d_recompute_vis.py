@@ -5,12 +5,11 @@ import pickle
 
 import torch
 import einops
-from datasets import load_from_disk
 
 import recompute
 from c_neuron_vis import neuron_vis_full
 import utils
-from utils import _move_to
+from utils import _move_to, load_data
 
 parser = ArgumentParser()
 parser.add_argument('--dataset', default='dolma-small')
@@ -73,7 +72,7 @@ else:
 #             for key1,value1 in value.items():
 #                 print(f'> {key1}: {value1[...,0,0]}')
 
-dataset = load_from_disk(f'{args.datasets_dir}/{args.dataset}')
+dataset = load_data(args)
 
 model = utils.ModelWrapper.from_pretrained(
     args.model,

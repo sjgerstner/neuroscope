@@ -6,7 +6,6 @@ Other batch sizes will almost certainly lead to bugs.
 
 #TODO (also other files) pathlib
 
-
 from argparse import ArgumentParser
 import json
 import os
@@ -26,7 +25,8 @@ from utils import (
     add_properties,
     VALUES_TO_SUMMARISE,
     RELEVANT_SIGNS,
-    detect_cases
+    detect_cases,
+    load_data,
 )
 
 HOOKS_TO_CACHE = ['ln2.hook_normalized', 'mlp.hook_post', 'mlp.hook_pre', 'mlp.hook_pre_linear']
@@ -344,7 +344,7 @@ if __name__=="__main__":
 
     model = ModelWrapper.from_pretrained(args.model, refactor_glu=args.refactor_glu)
 
-    dataset = datasets.load_from_disk(f'{args.datasets_dir}/{args.dataset}')
+    dataset = load_data(args)
     assert isinstance(dataset, datasets.Dataset)
     if args.test:
         dataset = dataset.select(range(4))
