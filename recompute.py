@@ -9,7 +9,7 @@ import einops
 from datasets import Dataset
 
 from utils import ModelWrapper, detect_cases, get_act_type_keys, adapt_activations
-from b_activations import _get_reduce
+#from b_activations import _get_reduce
 
 def _recompute_from_cache(
     model:ModelWrapper, layer:int, neuron:int, indices_within_dataset:torch.Tensor, save_path:str, key:tuple[str,str,str]
@@ -145,9 +145,12 @@ def recompute_acts(
 
     return {'all_acts':recomputed_acts, 'position_indices':positions, 'act_type_keys':act_type_keys}
 
-def load_activations_if_possible(args, neuron_dir, single_sign_to_adapt=1):
+def activations_path(args, neuron_dir):
     activations_file = f'{neuron_dir}/activations{"_refactored" if args.refactor_glu else ""}.pt'
     activations_file_raw = f'{neuron_dir}/activations.pt'
+    return activations_file, activations_file_raw
+
+def load_activations_if_possible(args, activations_file, activations_file_raw, single_sign_to_adapt=1):
     if exists(activations_file):
     #TODO we may need to comment this out because the internal format changed
         return torch.load(activations_file)
@@ -160,7 +163,12 @@ def load_activations_if_possible(args, neuron_dir, single_sign_to_adapt=1):
     return None
 
 def recompute_acts_if_necessary(args, summary_dict, maxmin_keys, neuron_dir, single_sign_to_adapt=1, **kwargs):
-    activation_data = load_activations_if_possible(args=args, neuron_dir=neuron_dir, single_sign_to_adapt=single_sign_to_adapt)
+    activations_file, activations_file_raw = activations_path(args, neuron_dir)
+    activation_data = load_activations_if_possible(
+        args=args,
+        activations_file=activations_file, activations_file_raw=activations_file_raw,
+        single_sign_to_adapt=single_sign_to_adapt
+    )
     if activation_data is None:
         activation_data = {case_key:recompute_acts(
                 **kwargs,
@@ -198,7 +206,12 @@ def neuron_data_from_dict(args, summary_dict, maxmin_keys, neuron_dir, layer, ne
     return activation_data
 
 def neuron_data_from_dataset(args, activation_dataset:Dataset, text_dataset:Dataset, model, layer:int, neuron:int, save_path, **load_kwargs):
-    loaded_data = load_activations_if_possible(args=args, **load_kwargs)#load_kwargs: neuron_dir, single_sign_to_adapt
+    activations_file, activations_file_raw = activations_path(args, load_kwargs["neuron_dir"])
+    loaded_data = load_activations_if_possible(
+        args=args,
+        activations_file=activations_file, activations_file_raw=activations_file_raw,
+        single_sign_to_adapt=load_kwargs["single_sign_to_adapt"],
+    )#load_kwargs: neuron_dir, single_sign_to_adapt
     intermediate_data = activation_dataset[layer*model.cfg.d_mlp+neuron]#should be a dict
     returned_data = {}
     if loaded_data is not None:
@@ -222,7 +235,7 @@ def neuron_data_from_dataset(args, activation_dataset:Dataset, text_dataset:Data
                     use_cache=args.use_cache,
                 )
             continue
-        elif case_key.endswith('_values'):
+        if case_key.endswith('_values'):
             split_case_key = case_key[:-7].split('_')
         else:
             split_case_key = case_key.split('_')
@@ -231,6 +244,7 @@ def neuron_data_from_dataset(args, activation_dataset:Dataset, text_dataset:Data
             '_'.join(split_case_key[2:-1]),#e.g. hook_post
             split_case_key[-1],#always max
         )
-        returned_data[new_case_key]=intermediate_data[case_key]if loaded_data is None:
-            
+        returned_data[new_case_key]=intermediate_data[case_key]
+    if loaded_data is None:
+        torch.save(returned_data, activations_file)
     return returned_data
