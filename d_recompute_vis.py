@@ -5,7 +5,7 @@ import pickle
 
 import torch
 import einops
-from datasets import load_dataset, load_from_disk
+from datasets import load_dataset, load_from_disk, Dataset
 
 import recompute
 from c_neuron_vis import neuron_vis_full
@@ -73,6 +73,7 @@ else:
         assert args.model=='allenai/OLMo-7B-0424-hf'
         assert args.refactor_glu
         summary_dataset = load_dataset('sjgerstner/OLMo-7B-0424-hf_neuron-activations')
+    assert isinstance(summary_dataset, Dataset)
 # if args.test:
 #     #print(f"summary_dict: {summary_dict.keys()}")
 #     for key,value in summary_dict.items():
@@ -84,6 +85,7 @@ else:
 #                 print(f'> {key1}: {value1[...,0,0]}')
 
 text_dataset = load_data(args)
+assert isinstance(summary_dataset, Dataset)
 
 model = utils.ModelWrapper.from_pretrained(
     args.model,
@@ -93,11 +95,7 @@ model = utils.ModelWrapper.from_pretrained(
 assert model.W_gate is not None
 
 tokenizer = model.tokenizer
-if summary_dict:
-    TOPK, N_LAYERS, N_NEURONS = summary_dict[('gate+_in+', 'hook_post', 'max')]['indices'].shape
-else:
-    assert summary_dataset is not None
-    pass#TODO
+N_LAYERS, N_NEURONS = model.cfg.n_layers, model.cfg.d_mlp
 
 if summary_dict and args.refactor_glu and not refactored_already:
     #first we detect which neurons to refactor and then we update the model
@@ -112,9 +110,9 @@ else:
     sign_to_adapt = torch.ones(size=(N_LAYERS, N_NEURONS), dtype=torch.int)
 
 if args.neurons=='all':
-    layer_neuron_list = [range(model.cfg.d_mlp) for _layer in range(model.cfg.n_layers)]
+    layer_neuron_list = [range(N_NEURONS) for _layer in range(N_LAYERS)]
 elif args.neurons:
-    layer_neuron_list = [[] for layer in range(model.cfg.n_layers)]
+    layer_neuron_list = [[] for _layer in range(N_LAYERS)]
     for ln_str in args.neurons:
         layer, neuron = tuple(int(n) for n in ln_str.split('.'))
         layer_neuron_list[layer].append(neuron)
@@ -124,7 +122,7 @@ elif args.test:
 if summary_dict:
     maxmin_keys = [key for key in summary_dict.keys() if key[-1] in ['max','min']]
 else:
-    pass #TODO
+    maxmin_keys = []#dummy
 
 if args.neurons=='all':
     layer_neuron_list = [range(N_NEURONS) for _layer in range(N_LAYERS)]
@@ -178,25 +176,25 @@ for layer,neuron_list in enumerate(layer_neuron_list):
 
         #recomputing neuron activations on max and min examples
         print('>> gathering/recomputing data from cache...')
+        kwargs = {
+            "neuron_dir": neuron_vis_dir,
+            "model": model, "layer": layer, "neuron": neuron,
+            "save_path": SAVE_PATH,
+            "text_dataset": text_dataset,
+        }
         if summary_dict:
             activation_data = recompute.neuron_data_from_dict(
                 args=args,
                 summary_dict=summary_dict,
                 maxmin_keys=maxmin_keys,
-                neuron_dir=neuron_vis_dir,
                 single_sign_to_adapt=int(sign_to_adapt[layer,neuron]),
-                model=model, layer=layer, neuron=neuron,
-                save_path=SAVE_PATH,
-                dataset=text_dataset,
+                **kwargs,
             )
         else:
             activation_data = recompute.neuron_data_from_dataset(
                 args=args,
                 activation_dataset=summary_dataset,
-                text_dataset=text_dataset,
-                model=model, layer=layer, neuron=neuron,
-                save_path=SAVE_PATH,
-                neuron_dir=neuron_vis_dir,
+                **kwargs,
             )
         #visualisation
         print('>> creating html page...')
