@@ -27,13 +27,8 @@ def _vis_example(i, indices, acts, dataset, tokenizer, key, neuron_dir, stop_tok
     with open(f"{neuron_dir}/{data_url}", "w", encoding="utf-8") as f:
         dump(data_dict, f)
     #TODO source of dataset example
-        # colored_tokens_multi(
-        #     tokens=tokens,
-        #     values=relevant_acts,
-        #     labels=get_act_type_keys(key),
-        # )
     return f"""<h4>Example {i}</h4>
-        <div class="circuit-viz" data-url="./{data_url}">
+        <div class="circuit-viz" data-url="./{data_url}" data-vis-type="text">
         </div>"""
 
 def _vis_examples(activation_data, dataset, tokenizer, neuron_dir):
@@ -119,7 +114,7 @@ def neuron_vis_full(activation_data, dataset, model, neuron_dir):
     htmls = []
     # # We first add the style to make each token element have a nice border
     # htmls = [style_string]
-    #TODO weight-based analysis (circuitsvis topk tokens + RW functionality)
+    #TODO weight-based analysis (topk tokens + RW functionality)
     htmls.append(_vis_stats(
         activation_data=activation_data, actfn=model.actfn
     ))
