@@ -135,8 +135,11 @@ def recompute_acts(
     for atk in act_type_keys:
         if atk not in intermediate:
             intermediate[atk] = bins[key[0]] * intermediate['_'.join(atk.split('_')[2:])]
+            #two hacks for ColoredTokens:
             if torch.all(intermediate[atk]<=0):
                 intermediate[atk][intermediate[atk]==-0.0]=-1e-7
+            else:
+                intermediate[atk][intermediate[atk]==-0.0]=+0.0
 
     recomputed_acts = torch.stack([intermediate[hook] for hook in act_type_keys], dim=-1)
 
