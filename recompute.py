@@ -85,7 +85,7 @@ def _recompute_from_scratch(
 def recompute_acts(
     model:ModelWrapper,
     layer:int, neuron:int,
-    dataset:Dataset,
+    text_dataset:Dataset,
     indices_within_dataset:torch.Tensor,
     save_path:str,
     key:tuple[str,str,str],
@@ -124,7 +124,7 @@ def recompute_acts(
             layer=layer,
             neuron=neuron,
             indices_within_dataset=indices_within_dataset,
-            dataset=dataset,
+            dataset=text_dataset,
         )
     bins = detect_cases(
         gate_values=intermediate['hook_pre'],
@@ -145,20 +145,23 @@ def recompute_acts(
 
     return {'all_acts':recomputed_acts, 'position_indices':positions, 'act_type_keys':act_type_keys}
 
-def recompute_acts_if_necessary(args, summary_dict, maxmin_keys, neuron_dir, single_sign_to_adapt=1, **kwargs):
+def load_activations_if_possible(args, neuron_dir, single_sign_to_adapt=1):
     activations_file = f'{neuron_dir}/activations{"_refactored" if args.refactor_glu else ""}.pt'
     activations_file_raw = f'{neuron_dir}/activations.pt'
     if exists(activations_file):
     #TODO we may need to comment this out because the internal format changed
-        activation_data = torch.load(activations_file)
-    elif args.refactor_glu and exists(activations_file_raw):
+        return torch.load(activations_file)
+    if args.refactor_glu and exists(activations_file_raw):
         activation_data = torch.load(activations_file_raw)
         if single_sign_to_adapt==-1:
             activation_data = adapt_activations(activation_data)
         torch.save(activation_data, activations_file)
-    # if False:
-    #     pass
-    else:
+        return activation_data
+    return None
+
+def recompute_acts_if_necessary(args, summary_dict, maxmin_keys, neuron_dir, single_sign_to_adapt=1, **kwargs):
+    activation_data = load_activations_if_possible(args=args, neuron_dir=neuron_dir, single_sign_to_adapt=single_sign_to_adapt)
+    if activation_data is None:
         activation_data = {case_key:recompute_acts(
                 **kwargs,
                 key=case_key,
@@ -177,3 +180,57 @@ def expand_with_summary(activation_data, summary_dict, layer, neuron):
             for key1,value1 in value.items():
                 activation_data[key][key1]=value1[...,layer,neuron]
     return activation_data
+
+def neuron_data_from_dict(args, summary_dict, maxmin_keys, neuron_dir, layer, neuron, single_sign_to_adapt=1, **kwargs):
+    activation_data = recompute_acts_if_necessary(
+        args=args,
+        summary_dict=summary_dict,
+        maxmin_keys=maxmin_keys,
+        neuron_dir=neuron_dir,
+        single_sign_to_adapt=single_sign_to_adapt,
+        **kwargs,
+    )
+    activation_data = expand_with_summary(
+        activation_data=activation_data,
+        summary_dict=summary_dict,
+        layer=layer, neuron=neuron,
+    )
+    return activation_data
+
+def neuron_data_from_dataset(args, activation_dataset:Dataset, text_dataset:Dataset, model, layer:int, neuron:int, save_path, **load_kwargs):
+    loaded_data = load_activations_if_possible(args=args, **load_kwargs)#load_kwargs: neuron_dir, single_sign_to_adapt
+    intermediate_data = activation_dataset[layer*model.cfg.d_mlp+neuron]#should be a dict
+    returned_data = {}
+    if loaded_data is not None:
+        for loaded_key, loaded_value in loaded_data.items():
+            returned_data[loaded_key] = loaded_value
+    for case_key, value in intermediate_data.items():
+        if case_key.endswith('_indices'):
+            if loaded_data is None:
+                split_case_key = case_key[:-8].split('_')
+                new_case_key = (
+                    '_'.join(split_case_key[:2]),#e.g. gate+_in+
+                    '_'.join(split_case_key[2:-1]),#e.g. hook_post
+                    split_case_key[-1],#always max
+                )
+                returned_data[new_case_key] = recompute_acts(
+                    model=model, layer=layer, neuron=neuron,
+                    text_dataset=text_dataset,
+                    save_path=save_path,
+                    key=case_key,
+                    indices_within_dataset=value,
+                    use_cache=args.use_cache,
+                )
+            continue
+        elif case_key.endswith('_values'):
+            split_case_key = case_key[:-7].split('_')
+        else:
+            split_case_key = case_key.split('_')
+        new_case_key = (
+            '_'.join(split_case_key[:2]),#e.g. gate+_in+
+            '_'.join(split_case_key[2:-1]),#e.g. hook_post
+            split_case_key[-1],#always max
+        )
+        returned_data[new_case_key]=intermediate_data[case_key]if loaded_data is None:
+            
+    return returned_data

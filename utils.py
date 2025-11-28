@@ -1,3 +1,5 @@
+from os.path import exists
+
 import torch
 from torch import is_tensor
 
@@ -5,7 +7,7 @@ from transformers.activations import ACT2FN
 
 from transformer_lens import HookedTransformer
 
-from datasets import Dataset
+import datasets
 
 VALUES_TO_SUMMARISE = ['hook_post', 'hook_pre_linear', 'hook_pre', 'swish']
 CASES = ['gate+_in+',
@@ -179,7 +181,7 @@ class ModelWrapper(HookedTransformer):
 #             self._max_seq_len = max(len(row) for row in self['input_ids'])
 #         return self._max_seq_len
 
-def add_properties(dataset:Dataset):
+def add_properties(dataset:datasets.Dataset):
     setattr(dataset, "n_tokens", sum(len(row) for row in dataset['input_ids']))
     setattr(dataset, "max_seq_len", max(len(row) for row in dataset['input_ids']))
     return
@@ -199,3 +201,11 @@ def topk_indices(maxact, k=16, largest=True, use_cuda=True):
     _values, indices = torch.topk(maxact, k=k, dim=0, largest=largest)
     #sample layer neuron -> k layer neuron, entries are indices along sample dimension
     return indices
+
+def load_data(args):
+    dataset_path = f'{args.datasets_dir}/{args.dataset}'
+    if exists(dataset_path):
+        return datasets.load_from_disk(dataset_path)
+    if args.dataset=='dolma-small':
+        return datasets.load_dataset('sjgerstner/dolma-small')
+    return datasets.load_dataset(args.dataset)
