@@ -135,11 +135,6 @@ def recompute_acts(
     for atk in act_type_keys:
         if atk not in intermediate:
             intermediate[atk] = bins[key[0]] * intermediate['_'.join(atk.split('_')[2:])]
-            #two hacks for ColoredTokens:
-            if torch.all(intermediate[atk]<=0):
-                intermediate[atk][intermediate[atk]==-0.0]=-1e-7
-            else:
-                intermediate[atk][intermediate[atk]==-0.0]=+0.0
 
     recomputed_acts = torch.stack([intermediate[hook] for hook in act_type_keys], dim=-1)
 
@@ -147,6 +142,22 @@ def recompute_acts(
         positions = torch.argmax(torch.abs(intermediate[f"{key[0]}_{key[1]}"]), dim=1)
 
     return {'all_acts':recomputed_acts, 'position_indices':positions, 'act_type_keys':act_type_keys}
+
+def color_hacks(my_slice):
+    """two hacks for ColoredTokens"""
+    if torch.all(my_slice<=0):
+        my_slice[my_slice==-0.0]=-1e-7
+    else:
+        my_slice[my_slice==-0.0]=+0.0
+    return my_slice
+
+def color_hacks_wrap(activation_data):
+    for case_key in activation_data:
+        if 'all_acts' not in activation_data[case_key]:
+            continue
+        for i in range(activation_data[case_key]['all_acts'].shape[1]):
+            activation_data[case_key]['all_acts'][:,i] = color_hacks(activation_data[case_key]['all_acts'][:,i])
+    return activation_data
 
 def activations_path(args, neuron_dir):
     activations_file = f'{neuron_dir}/activations{"_refactored" if args.refactor_glu else ""}.pt'
@@ -180,7 +191,8 @@ def recompute_acts_if_necessary(args, summary_dict, maxmin_keys, neuron_dir, sin
                 use_cache=args.use_cache,
             )
             for case_key in tqdm(maxmin_keys)}
-        torch.save(activation_data, activations_file)
+    activation_data = color_hacks_wrap(activation_data)
+    torch.save(activation_data, activations_file)
     return activation_data
 
 def expand_with_summary(activation_data, summary_dict, layer, neuron):
@@ -248,6 +260,6 @@ def neuron_data_from_dataset(args, activation_dataset:Dataset, text_dataset:Data
             split_case_key[-1],#always max
         )
         returned_data[new_case_key]=intermediate_data[case_key]
-    if loaded_data is None:
-        torch.save(returned_data, activations_file)
+    returned_data = color_hacks_wrap(returned_data)
+    torch.save(returned_data, activations_file)
     return returned_data

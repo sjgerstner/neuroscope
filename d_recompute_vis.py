@@ -85,14 +85,14 @@ else:
 #                 print(f'> {key1}: {value1[...,0,0]}')
 
 text_dataset = load_data(args)
-assert isinstance(summary_dataset, Dataset)
+assert isinstance(text_dataset, Dataset)
 
 model = utils.ModelWrapper.from_pretrained(
     args.model,
     refactor_glu=args.refactor_glu and refactored_already,#not yet refactor_glu=args.refactor_glu
     device='cpu' if (args.refactor_glu and not refactored_already) else 'cuda',
 )
-assert model.W_gate is not None
+#assert model.W_gate is not None
 
 tokenizer = model.tokenizer
 N_LAYERS, N_NEURONS = model.cfg.n_layers, model.cfg.d_mlp
