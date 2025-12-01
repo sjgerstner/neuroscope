@@ -32,19 +32,20 @@ def _vis_example(i, indices, acts, dataset, tokenizer, key, neuron_dir, stop_tok
         #     values=relevant_acts,
         #     labels=get_act_type_keys(key),
         # )
-    return f"""<h4>Example {i}</h4>
-        <div class="circuit-viz" data-url="./{data_url}">
-        </div>"""
+    return f"""<details>
+            <summary><h4>Example {i}</h4></summary>
+            <div class="circuit-viz" data-url="./{data_url}">
+            </div>
+        </details>"""
 
 def _vis_examples(activation_data, dataset, tokenizer, neuron_dir):
     htmls = []
-    #TODO possibility to toggle the lists
     for case in CASES:
-        htmls.append(f'<h2>Prototypical activations for case {case}</h2>')
+        htmls.append(f'<details>\n<summary><h2>Prototypical activations for case {case}</h2></summary>')
         for act_type in VALUES_TO_SUMMARISE:
             key = (case, act_type, 'max')
             if key in activation_data and 'all_acts' in activation_data[key] and activation_data[key]['values'][0]!=0:
-                htmls.append(f'<h3>Extreme {act_type} activations</h3>')
+                htmls.append(f'<details>\n<summary><h3>Extreme {act_type} activations</h3></summary>')
                 for i in range(activation_data[key]['indices'].shape[0]):
                     first_acts=activation_data[key]['all_acts'][i,:,0]#sample pos act_type
                     #ignore samples in which no token satisfies the condition:
@@ -62,8 +63,8 @@ def _vis_examples(activation_data, dataset, tokenizer, neuron_dir):
                             neuron_dir=neuron_dir
                             )
                     )
-            htmls.append('<hr>')
-        htmls.append('<hr>')
+            htmls.append('</details>\n<hr>')
+        htmls.append('</details>\n<hr>')
     return '\n'.join(htmls)
 
 def _vis_stats(activation_data, actfn):
