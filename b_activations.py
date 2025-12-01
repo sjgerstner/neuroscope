@@ -19,15 +19,7 @@ import einops
 #from transformers import DataCollatorWithPadding
 import datasets
 
-from utils import (
-    ModelWrapper,
-    _move_to,
-    add_properties,
-    VALUES_TO_SUMMARISE,
-    RELEVANT_SIGNS,
-    detect_cases,
-    load_data,
-)
+import utils
 
 HOOKS_TO_CACHE = ['ln2.hook_normalized', 'mlp.hook_post', 'mlp.hook_pre', 'mlp.hook_pre_linear']
 REDUCTIONS = ['max', 'sum']
@@ -112,11 +104,11 @@ def _get_all_neuron_acts(model, ids_and_mask, names_filter, max_seq_len=1024):
     #summary keys (mean and frequencies)
     #layer neuron
     #intermediate['mean'] = _get_reduce(cache['mlp.hook_post'], 'sum')#not needed anymore
-    bins=detect_cases(gate_values=cache['mlp.hook_pre'], in_values=cache['mlp.hook_pre_linear'])
+    bins=utils.detect_cases(gate_values=cache['mlp.hook_pre'], in_values=cache['mlp.hook_pre_linear'])
     for case,zero_one in bins.items():
         zero_one = zero_one.cuda()
         intermediate[(case, 'freq')] = _get_reduce(zero_one, 'sum')
-        for key_to_summarise in VALUES_TO_SUMMARISE:
+        for key_to_summarise in utils.VALUES_TO_SUMMARISE:
             if key_to_summarise.startswith('hook'):
                 values = cache[f'mlp.{key_to_summarise}'].cuda()
             elif key_to_summarise=='swish':
@@ -137,7 +129,7 @@ def _get_all_neuron_acts(model, ids_and_mask, names_filter, max_seq_len=1024):
                 if reduction=='max':
                     # print((case, key_to_summarise, reduction))
                     # print(intermediate[(case, key_to_summarise, reduction)]['values'].shape)
-                    intermediate[(case, key_to_summarise, reduction)]['values'] *= RELEVANT_SIGNS[case][key_to_summarise]
+                    intermediate[(case, key_to_summarise, reduction)]['values'] *= utils.RELEVANT_SIGNS[case][key_to_summarise]
                     # print(intermediate[(case, key_to_summarise, reduction)]['values'].shape)
             del values
         zero_one = zero_one.cpu()
@@ -216,7 +208,7 @@ def get_all_neuron_acts_on_dataset(
             intermediate = torch.load(f"{batch_file}.pt")
         elif batch_size_unchanged and os.path.exists(f"{batch_file}.pickle"):
             with open(f"{batch_file}.pickle", 'rb') as f:
-                intermediate = _move_to(pickle.load(f), device='cuda')
+                intermediate = utils._move_to(pickle.load(f), device='cuda')
         else:
             intermediate = _get_all_neuron_acts(model, batch, names_filter, dataset.max_seq_len)
             if args.store_cache:
@@ -266,7 +258,7 @@ def get_all_neuron_acts_on_dataset(
                     #running topk computation
                     #print(out_dict[key]['values'].shape) #should be: k layer neuron
                     vi = _get_reduce(
-                        out_dict[key]['values'] * RELEVANT_SIGNS[key[0]][key[1]],
+                        out_dict[key]['values'] * utils.RELEVANT_SIGNS[key[0]][key[1]],
                         reduction=key[-1],
                         arg=True,
                         k=min(out_dict[key]['values'].shape[0], args.examples_per_neuron),
@@ -275,7 +267,7 @@ def get_all_neuron_acts_on_dataset(
                     # if args.test:
                     #     print(out_dict[key]['indices'].shape)
                     #     print(vi['indices'].shape)
-                    out_dict[key]['values'] = vi['values'] * RELEVANT_SIGNS[key[0]][key[1]]
+                    out_dict[key]['values'] = vi['values'] * utils.RELEVANT_SIGNS[key[0]][key[1]]
                     out_dict[key]['indices'] = torch.gather(
                         out_dict[key]['indices'], dim=0, index=vi['indices']
                     )
@@ -318,13 +310,7 @@ if __name__=="__main__":
     parser.add_argument('--store_cache', type=bool, default=True)
     args = parser.parse_args()
 
-    if args.save_to:
-        RUN_CODE = args.save_to
-    elif args.test:
-        RUN_CODE = "test"
-    else:
-        RUN_CODE = f"{args.model.split('/')[-1]}_{args.dataset}"
-    #OLMO-1B-hf_dolma-v1_7-3B
+    RUN_CODE = utils.get_run_code(args)
 
     SAVE_PATH = f"{args.results_dir}/{RUN_CODE}"
     if not os.path.exists(SAVE_PATH):
@@ -342,13 +328,13 @@ if __name__=="__main__":
 
     torch.set_grad_enabled(False)
 
-    model = ModelWrapper.from_pretrained(args.model, refactor_glu=args.refactor_glu)
+    model = utils.ModelWrapper.from_pretrained(args.model, refactor_glu=args.refactor_glu)
 
-    dataset = load_data(args)
+    dataset = utils.load_data(args)
     assert isinstance(dataset, datasets.Dataset)
     if args.test:
         dataset = dataset.select(range(4))
-    add_properties(dataset)
+    utils.add_properties(dataset)
     # dataset = dataset.with_format(
     #     type="torch",
     #     columns=["input_ids", "attention_mask"],

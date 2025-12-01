@@ -34,13 +34,7 @@ parser.add_argument('--test', action='store_true')
 args = parser.parse_args()
 
 print("preparation...")
-if args.save_to:
-    RUN_CODE = args.save_to
-elif args.test:
-    RUN_CODE = "test"
-else:
-    RUN_CODE = f"{args.model.split('/')[-1]}_{args.dataset}"
-#OLMO-1B-hf_dolma-v1_7-3B
+RUN_CODE = utils.get_run_code(args)
 #the id of the b_activations.py run
 
 SAVE_PATH = f"{args.results_dir}/{RUN_CODE}"

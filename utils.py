@@ -209,3 +209,13 @@ def load_data(args):
     if args.dataset=='dolma-small':
         return datasets.load_dataset('sjgerstner/dolma-small')
     return datasets.load_dataset(args.dataset)
+
+def get_run_code(args):
+    if args.save_to:
+        return args.save_to
+    if args.test:
+        return "test"
+    model_code = args.model.split('/')[-1].strip("-hf")
+    if args.dataset=='dolma_small':
+        return model_code
+    return f"{model_code}_{args.dataset}"

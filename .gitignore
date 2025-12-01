@@ -1,12 +1,7 @@
 datasets
 datasets/dolma-small-raw
 datasets/dolma-small/cache-*
-results/OLMo-7B-0424-hf_dolma-small
-results/OLMo-7B-0424-hf_dolma-small/activation_cache
-results/7B_new
-results/7B_new/activation_cache
-results/OLMo-1B-hf_dolma-small
-results/test
+results
 #website/test
 docs/test
 testing-react
