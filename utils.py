@@ -207,8 +207,8 @@ def load_data(args):
     if exists(dataset_path):
         return datasets.load_from_disk(dataset_path)
     if args.dataset=='dolma-small':
-        return datasets.load_dataset('sjgerstner/dolma-small')
-    return datasets.load_dataset(args.dataset)
+        return datasets.load_dataset('sjgerstner/dolma-small')['train']
+    return datasets.load_dataset(args.dataset)['train']
 
 def get_run_code(args):
     if args.save_to:
@@ -216,6 +216,6 @@ def get_run_code(args):
     if args.test:
         return "test"
     model_code = args.model.split('/')[-1].strip("-hf")
-    if args.dataset=='dolma_small':
+    if args.dataset in ('dolma_small', 'dolma-small'):
         return model_code
     return f"{model_code}_{args.dataset}"

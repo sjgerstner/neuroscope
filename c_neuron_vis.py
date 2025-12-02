@@ -4,8 +4,7 @@ from json import dump
 from torch import allclose, zeros_like
 #from circuitsvis.tokens import colored_tokens_multi
 
-from utils import CASES, get_act_type_keys
-from b_activations import VALUES_TO_SUMMARISE
+from utils import CASES, get_act_type_keys, VALUES_TO_SUMMARISE
 
 def _vis_example(i, indices, acts, dataset, tokenizer, key, neuron_dir, stop_tokens=None):
     index = int(indices[i])
@@ -93,12 +92,20 @@ def _vis_stats(activation_data, actfn):
             maxima[(case, act_type)] = extreme_values[(case, act_type)] if extreme_values[(case, act_type)]>0 else 0
             minima[(case, act_type)] = extreme_values[(case, act_type)] if extreme_values[(case, act_type)]<0 else -0
         htmls.append('<tr>')
+        avgs = {
+            case: (
+                activation_data[(case, act_type, 'sum')]
+                if (case, act_type, 'sum') in activation_data
+                else activation_data[(case, act_type, 'mean')]
+            )
+            for case in CASES
+        }
         htmls.extend(
             [f"""<td>
             <b>{act_type}</b>:<br>
             Max: <b>{maxima[(case, act_type)]:.2f}</b>;<br>
             Min: <b>{minima[(case, act_type)]:.2f}</b>;<br>
-            Avg: <b>{activation_data[(case,act_type,'sum')]:.2f}</b>.
+            Avg: <b>{avgs[case]:.2f}</b>.
             </td>
             """
             for case in CASES

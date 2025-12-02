@@ -178,7 +178,7 @@ def get_all_neuron_acts_on_dataset(
         for hook in HOOKS_TO_CACHE
     ]
 
-    if args.store_cache and not os.path.exists(f'{path}/activation_cache'):
+    if not args.no_cache and not os.path.exists(f'{path}/activation_cache'):
         os.mkdir(f'{path}/activation_cache')
     previous_batch_size = 0
     if os.path.exists(f'{path}/activation_cache/batch_size.txt'):
@@ -186,7 +186,7 @@ def get_all_neuron_acts_on_dataset(
             previous_batch_size = int(f.read())
     #print(previous_batch_size, args.batch_size)
     batch_size_unchanged = previous_batch_size==args.batch_size
-    if args.store_cache and not batch_size_unchanged:
+    if not args.no_cache and not batch_size_unchanged:
         with open(f'{path}/activation_cache/batch_size.txt', 'w', encoding='utf-8') as f:
             f.write(str(args.batch_size))
     for i, batch in tqdm(enumerate(batched_dataset)):
@@ -307,7 +307,7 @@ if __name__=="__main__":
     parser.add_argument('--results_dir', default='results')
     parser.add_argument('--save_to', default=None)
     parser.add_argument('--test', action='store_true')
-    parser.add_argument('--store_cache', type=bool, default=True)
+    parser.add_argument('--no_cache', action='store_true')
     args = parser.parse_args()
 
     RUN_CODE = utils.get_run_code(args)

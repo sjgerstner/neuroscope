@@ -55,19 +55,17 @@ def _recompute_from_cache(
 def _recompute_from_scratch(
     model:ModelWrapper, layer:int, neuron:int, indices_within_dataset:torch.Tensor, dataset:Dataset,
 ) -> dict[str,torch.Tensor]:
-    input_ids = torch.stack([
-        dataset[int(index_within_dataset)]['input_ids']
-        for index_within_dataset in indices_within_dataset
-    ])
-    attention_mask = torch.stack([
-        dataset[int(index_within_dataset)]['attention_mask']
-        for index_within_dataset in indices_within_dataset
-    ])
+    input_ids = torch.zeros((len(indices_within_dataset), 1024), dtype=torch.int)#TODO the 1024 is hard-coded for the moment
+    attention_mask = torch.zeros((len(indices_within_dataset), 1024), dtype=torch.int)
+    for i, index_within_dataset in enumerate(indices_within_dataset):
+        example_len = len(dataset[int(index_within_dataset)]['input_ids'])
+        input_ids[i, :example_len] = torch.Tensor(dataset[int(index_within_dataset)]['input_ids'])
+        attention_mask[i, :example_len] = torch.Tensor(dataset[int(index_within_dataset)]['attention_mask'])
     names_filter = [
-        f"blocks.{layer}.{hook}"
+        f"blocks.{layer}.mlp.{hook}"
         for hook in ['hook_pre', 'hook_pre_linear', 'hook_post']
     ]
-    raw_cache = model.run_with_cache(
+    _logits, raw_cache = model.run_with_cache(
         input_ids,
         attention_mask=attention_mask,
         names_filter=names_filter,
@@ -75,7 +73,7 @@ def _recompute_from_scratch(
         stop_at_layer=layer+1,
     )
     intermediate = {
-        hook: raw_cache[f"blocks.{layer}.{hook}"][...,neuron]
+        hook: raw_cache[f"blocks.{layer}.mlp.{hook}"][...,neuron]
         for hook in ['hook_pre', 'hook_pre_linear', 'hook_post']
     }
     intermediate['swish'] = model.actfn(intermediate['hook_pre'])
@@ -89,7 +87,7 @@ def recompute_acts(
     indices_within_dataset:torch.Tensor,
     save_path:str,
     key:tuple[str,str,str],
-    use_cache:bool=True,
+    from_scratch:bool=False,
     ) -> dict[str,torch.Tensor|list[str]]:
     """Recompute activations for the given neuron and dataset indices, using cached residual stream activations.
 
@@ -109,7 +107,7 @@ def recompute_acts(
     act_type_keys = get_act_type_keys(key)
     if not act_type_keys:
         return {}
-    if use_cache:
+    if not from_scratch:
         intermediate, positions = _recompute_from_cache(
             model=model,
             layer=layer,
@@ -138,7 +136,7 @@ def recompute_acts(
 
     recomputed_acts = torch.stack([intermediate[hook] for hook in act_type_keys], dim=-1)
 
-    if not use_cache:
+    if from_scratch:
         positions = torch.argmax(torch.abs(intermediate[f"{key[0]}_{key[1]}"]), dim=1)
 
     return {'all_acts':recomputed_acts, 'position_indices':positions, 'act_type_keys':act_type_keys}
@@ -153,6 +151,8 @@ def color_hacks(my_slice):
 
 def color_hacks_wrap(activation_data):
     for case_key in activation_data:
+        if not isinstance(activation_data[case_key], dict):
+            continue
         if 'all_acts' not in activation_data[case_key]:
             continue
         for i in range(activation_data[case_key]['all_acts'].shape[1]):
@@ -188,7 +188,7 @@ def recompute_acts_if_necessary(args, summary_dict, maxmin_keys, neuron_dir, sin
                 **kwargs,
                 key=case_key,
                 indices_within_dataset=summary_dict[case_key]['indices'][...,kwargs['layer'],kwargs['neuron']],
-                use_cache=args.use_cache,
+                from_scratch=args.from_scratch,
             )
             for case_key in tqdm(maxmin_keys)}
     activation_data = color_hacks_wrap(activation_data)
@@ -233,32 +233,38 @@ def neuron_data_from_dataset(args, activation_dataset:Dataset, text_dataset:Data
         for loaded_key, loaded_value in loaded_data.items():
             returned_data[loaded_key] = loaded_value
     for case_key, value in intermediate_data.items():
+        if case_key in ('layer', 'neuron'):
+            continue
         if case_key.endswith('_indices'):
             if loaded_data is None:
                 split_case_key = case_key[:-8].split('_')
                 new_case_key = (
                     '_'.join(split_case_key[:2]),#e.g. gate+_in+
                     '_'.join(split_case_key[2:-1]),#e.g. hook_post
-                    split_case_key[-1],#always max
+                    'max',
                 )
                 returned_data[new_case_key] = recompute_acts(
                     model=model, layer=layer, neuron=neuron,
                     text_dataset=text_dataset,
                     save_path=save_path,
-                    key=case_key,
+                    key=new_case_key,
                     indices_within_dataset=value,
-                    use_cache=args.use_cache,
+                    from_scratch=args.from_scratch,
                 )
+                returned_data[new_case_key]['indices'] = torch.Tensor(value)
+                returned_data[new_case_key]['values'] = torch.Tensor(intermediate_data[case_key[:-8]+'_values'])
             continue
         if case_key.endswith('_values'):
-            split_case_key = case_key[:-7].split('_')
+            continue
+        if case_key.endswith('_freq'):
+            new_case_key = (case_key[:-5], 'freq')
         else:
             split_case_key = case_key.split('_')
-        new_case_key = (
-            '_'.join(split_case_key[:2]),#e.g. gate+_in+
-            '_'.join(split_case_key[2:-1]),#e.g. hook_post
-            split_case_key[-1],#always max
-        )
+            new_case_key = (
+                '_'.join(split_case_key[:2]),#e.g. gate+_in+
+                '_'.join(split_case_key[2:-1]),#e.g. hook_post
+                split_case_key[-1],#e.g. sum
+            )
         returned_data[new_case_key]=intermediate_data[case_key]
     returned_data = color_hacks_wrap(returned_data)
     torch.save(returned_data, activations_file)

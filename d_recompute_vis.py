@@ -24,7 +24,7 @@ parser.add_argument('--datasets_dir', default='datasets')
 parser.add_argument('--results_dir', default='results')
 parser.add_argument('--site_dir', default='docs')
 parser.add_argument('--save_to', default=None)
-parser.add_argument('--use_cache', type=bool, default=True)
+parser.add_argument('--from_scratch', action='store_true')
 parser.add_argument('--neurons',
     nargs='+',
     default=[],
@@ -37,8 +37,14 @@ print("preparation...")
 RUN_CODE = utils.get_run_code(args)
 #the id of the b_activations.py run
 
+if not os.path.exists(args.results_dir):
+    os.mkdir(args.results_dir)
 SAVE_PATH = f"{args.results_dir}/{RUN_CODE}"
+if not os.path.exists(SAVE_PATH):
+    os.mkdir(SAVE_PATH)
 VIS_PATH = f"{args.site_dir}/{RUN_CODE}"
+if not os.path.exists(VIS_PATH):
+    os.mkdir(VIS_PATH)
 with open("html_boilerplate/head.html", "r", encoding="utf-8") as read_file:
     HEAD_AND_TITLE = read_file.read()+f"\n<body>\n<h1>Model: <b>{args.model}</b></h1>\n"
 with open("html_boilerplate/script.html", "r", encoding="utf-8") as read_file:
@@ -66,7 +72,7 @@ else:
         assert args.dataset=='dolma-small'
         assert args.model=='allenai/OLMo-7B-0424-hf'
         assert args.refactor_glu
-        summary_dataset = load_dataset('sjgerstner/OLMo-7B-0424-hf_neuron-activations')
+        summary_dataset = load_dataset('sjgerstner/OLMo-7B-0424-hf_neuron-activations')['train']
     assert isinstance(summary_dataset, Dataset)
 # if args.test:
 #     #print(f"summary_dict: {summary_dict.keys()}")
@@ -81,17 +87,18 @@ else:
 text_dataset = load_data(args)
 assert isinstance(text_dataset, Dataset)
 
+need_to_refactor = summary_dict and args.refactor_glu and not refactored_already
 model = utils.ModelWrapper.from_pretrained(
     args.model,
-    refactor_glu=args.refactor_glu and refactored_already,#not yet refactor_glu=args.refactor_glu
-    device='cpu' if (args.refactor_glu and not refactored_already) else 'cuda',
+    refactor_glu=args.refactor_glu and not need_to_refactor,#not yet refactor_glu=args.refactor_glu
+    device='cpu' if need_to_refactor else 'cuda',
 )
 #assert model.W_gate is not None
 
 tokenizer = model.tokenizer
 N_LAYERS, N_NEURONS = model.cfg.n_layers, model.cfg.d_mlp
 
-if summary_dict and args.refactor_glu and not refactored_already:
+if need_to_refactor:
     #first we detect which neurons to refactor and then we update the model
     sign_to_adapt = torch.sign(einops.einsum(
         model.W_in.detach().cuda(), model.W_gate.detach().cuda(), "l d n, l d n -> l n"
@@ -175,13 +182,14 @@ for layer,neuron_list in enumerate(layer_neuron_list):
             "model": model, "layer": layer, "neuron": neuron,
             "save_path": SAVE_PATH,
             "text_dataset": text_dataset,
+            "single_sign_to_adapt": int(sign_to_adapt[layer,neuron]),
         }
+        #print(kwargs)
         if summary_dict:
             activation_data = recompute.neuron_data_from_dict(
                 args=args,
                 summary_dict=summary_dict,
                 maxmin_keys=maxmin_keys,
-                single_sign_to_adapt=int(sign_to_adapt[layer,neuron]),
                 **kwargs,
             )
         else:
@@ -193,6 +201,8 @@ for layer,neuron_list in enumerate(layer_neuron_list):
         #visualisation
         print('>> creating html page...')
         neuron_vis_dir = f'{VIS_PATH}/L{layer}/N{neuron}'
+        if not os.path.exists(neuron_vis_dir):
+            os.makedirs(neuron_vis_dir)
         # We add some text to tell us what layer and neuron we're looking at
         heading = f"<h2>Layer: <b>{layer}</b>. Neuron Index: <b>{neuron}</b></h2>\n"
         HTML = HEAD_AND_TITLE + heading + neuron_vis_full(
