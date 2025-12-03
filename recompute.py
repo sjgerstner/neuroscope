@@ -204,7 +204,7 @@ def expand_with_summary(activation_data, summary_dict, layer, neuron):
                 activation_data[key][key1]=value1[...,layer,neuron]
     return activation_data
 
-def neuron_data_from_dict(args, summary_dict, maxmin_keys, neuron_dir, layer, neuron, single_sign_to_adapt=1, **kwargs):
+def neuron_data_from_dict(args, summary_dict, maxmin_keys, neuron_dir, single_sign_to_adapt=1, **kwargs):
     activation_data = recompute_acts_if_necessary(
         args=args,
         summary_dict=summary_dict,
@@ -216,7 +216,7 @@ def neuron_data_from_dict(args, summary_dict, maxmin_keys, neuron_dir, layer, ne
     activation_data = expand_with_summary(
         activation_data=activation_data,
         summary_dict=summary_dict,
-        layer=layer, neuron=neuron,
+        layer=kwargs['layer'], neuron=kwargs['neuron'],
     )
     return activation_data
 
