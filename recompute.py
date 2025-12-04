@@ -144,9 +144,9 @@ def recompute_acts(
 def color_hacks(my_slice):
     """two hacks for ColoredTokens"""
     if torch.all(my_slice<=0):
-        my_slice[my_slice==-0.0]=-1e-7
+        my_slice[my_slice==0]=-1e-7
     else:
-        my_slice[my_slice==-0.0]=+0.0
+        my_slice[my_slice==0]=+0.0
     return my_slice
 
 def color_hacks_wrap(activation_data):

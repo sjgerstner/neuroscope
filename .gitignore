@@ -6,6 +6,7 @@ results
 docs/test
 testing-react
 .vscode
+adapt_json.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
