@@ -232,7 +232,7 @@ def neuron_data_from_dataset(args, activation_dataset:Dataset, text_dataset:Data
     if loaded_data is not None:
         for loaded_key, loaded_value in loaded_data.items():
             returned_data[loaded_key] = loaded_value
-    for case_key, value in intermediate_data.items():
+    for case_key, value in tqdm(intermediate_data.items()):
         if case_key in ('layer', 'neuron'):
             continue
         if case_key.endswith('_indices'):
